@@ -1,0 +1,14 @@
+<launch>
+  
+  <arg name="model" default="$(find rviz_teleop_commander)/urdf/fmav.urdf"/>
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
+  <param name="logo_path" type="string" value="$(find rviz_teleop_commander)/ico/ico.png"/>
+  <param name="/mav_driver/port" type="string" value="/dev/ttyUSB0"/>
+  <param name="/mav_driver/baudrate" type="int" value="115200" />
+
+  <node name="imu_tester" pkg="mav_comm_driver" type="imu_tester" output="screen"/>
+  
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen"/>
+
+</launch>

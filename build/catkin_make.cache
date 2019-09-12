@@ -1,0 +1,2 @@
+mav_comm_driver:rviz_teleop_commander
+-DCATKIN_DEVEL_PREFIX=/home/moujiawang/gcs/devel -DCMAKE_INSTALL_PREFIX=/home/moujiawang/gcs/install -G Unix Makefiles

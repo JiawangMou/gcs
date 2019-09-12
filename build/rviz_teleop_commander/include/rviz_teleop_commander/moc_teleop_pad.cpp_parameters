@@ -1,0 +1,15 @@
+-I/home/moujiawang/gcs/devel/include
+-I/opt/ros/kinetic/include
+-I/opt/ros/kinetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp
+-I/usr/include
+-I/usr/include/eigen3
+-I/usr/include/OGRE/Overlay
+-I/usr/include/OGRE
+-I/home/moujiawang/gcs/src/rviz_teleop_commander/include
+-DROS_BUILD_SHARED_LIBS=1
+-DROS_PACKAGE_NAME="rviz_teleop_commander"
+-DROSCONSOLE_BACKEND_LOG4CXX
+-DQT_NO_KEYWORDS
+-o
+/home/moujiawang/gcs/build/rviz_teleop_commander/include/rviz_teleop_commander/moc_teleop_pad.cpp
+/home/moujiawang/gcs/src/rviz_teleop_commander/include/rviz_teleop_commander/teleop_pad.h

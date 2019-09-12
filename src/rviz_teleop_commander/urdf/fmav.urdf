@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.5.1-0-g916b5db  Build Version: 1.5.7152.31018
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="fmav">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-2.9764E-16 6.61603184855861E-17 -0.42584"
+        rpy="0 0 0" />
+      <mass
+        value="57.007" />
+      <inertia
+        ixx="2.9506"
+        ixy="2.9427E-14"
+        ixz="-1.63159999999998E-16"
+        iyy="4.691"
+        iyz="4.04000201488969E-16"
+        izz="2.0642" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 -0.4"
+        rpy="1.5707963267949 0 1.5707963267949" />
+      <geometry>
+        <mesh
+          filename="package://rviz_teleop_commander/meshes/fmav.stl" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.6549 0.99216 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="1.5707963267949 0 0" />
+      <geometry>
+        <mesh
+          filename="package://rviz_teleop_commander/meshes/fmav.stl" />
+      </geometry>
+    </collision>
+  </link>
+</robot>

@@ -1,0 +1,8 @@
+prefix=/home/moujiawang/gcs/devel
+
+Name: rviz_teleop_commander
+Description: Description of rviz_teleop_commander
+Version: 0.0.0
+Cflags: -I/home/moujiawang/gcs/devel/include
+Libs: -L/home/moujiawang/gcs/devel/lib 
+Requires: std_msgs message_runtime
