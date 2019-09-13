@@ -6,19 +6,9 @@
                 "limitSymbolsToIncludedHeaders": true
             },
             "includePath": [
-                "/home/moujiawang/gcs/devel/include/**",
-                "/home/moujiawang/test_ws/devel/include/**",
-                "/home/moujiawang/catkin_ws/devel/include/**",
+                "/home/autolabor/gcs_ws/devel/include/**",
                 "/opt/ros/kinetic/include/**",
-                "/home/moujiawang/test_ws/src/learning/include/**",
-                "/home/moujiawang/catkin_ws/src/learning_communication/include/**",
-                "/home/moujiawang/test_ws/src/learning_tf/include/**",
-                "/home/moujiawang/gcs/src/mav_comm_driver/include/**",
-                "/home/moujiawang/test_ws/src/my_serial_node/include/**",
-                "/home/moujiawang/test_ws/src/rviz_basic_shape/include/**",
-                "/home/moujiawang/gcs/src/rviz_teleop_commander/include/**",
-                "/home/moujiawang/test_ws/src/serial_port/include/**",
-                "/home/moujiawang/test_ws/src/serial_test/include/**",
+                "/home/autolabor/gcs_ws/src/rviz_teleop_commander/include/**",
                 "/usr/include/**"
             ],
             "name": "ROS",
