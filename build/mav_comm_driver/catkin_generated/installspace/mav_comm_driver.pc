@@ -1,8 +1,0 @@
-prefix=/home/moujiawang/gcs/install
-
-Name: mav_comm_driver
-Description: Description of mav_comm_driver
-Version: 0.0.0
-Cflags: -I/home/moujiawang/gcs/install/include
-Libs: -L/home/moujiawang/gcs/install/lib 
-Requires: 
