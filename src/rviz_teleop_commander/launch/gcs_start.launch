@@ -11,4 +11,6 @@
   
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen"/>
 
+  <include file= "$(find vicon_bridge)/launch/vicon.launch"/>
+
 </launch>
