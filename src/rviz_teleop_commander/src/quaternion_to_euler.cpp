@@ -10,6 +10,8 @@ published /rpy_angles (message oftype geometry_msgs::Vector3.h)
 #include "geometry_msgs/Quaternion.h"
 #include "tf/transform_datatypes.h"
 #include "tf/LinearMath/Matrix3x3.h"
+
+#define M_PI 3.14159265
  
 // Here I use global publisher and subscriber, since I want to access the
 // publisher in the function MsgCallback:
@@ -31,9 +33,9 @@ void MsgCallback(const geometry_msgs::TransformStamped msg)
  
     // the found angles are written in a geometry_msgs::Vector3
     geometry_msgs::Vector3 rpy;
-    rpy.x = roll;
-    rpy.y = pitch;
-    rpy.z = yaw;
+    rpy.x = roll * 180.0/M_PI;
+    rpy.y = pitch * 80.0/M_PI;
+    rpy.z = yaw * 180.0/M_PI;
  
     // this Vector is then published:
     rpy_publisher.publish(rpy);
