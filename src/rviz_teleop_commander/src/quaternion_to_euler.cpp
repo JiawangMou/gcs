@@ -11,7 +11,7 @@ published /rpy_angles (message oftype geometry_msgs::Vector3.h)
 #include "tf/transform_datatypes.h"
 #include "tf/LinearMath/Matrix3x3.h"
 
-#define M_PI 3.14159265
+//#define M_PI 3.14159265
  
 // Here I use global publisher and subscriber, since I want to access the
 // publisher in the function MsgCallback:
