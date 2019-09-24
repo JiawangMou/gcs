@@ -34,7 +34,7 @@ void MsgCallback(const geometry_msgs::TransformStamped msg)
     // the found angles are written in a geometry_msgs::Vector3
     geometry_msgs::Vector3 rpy;
     rpy.x = roll * 180.0/M_PI;
-    rpy.y = pitch * 80.0/M_PI;
+    rpy.y = pitch * 180.0/M_PI;
     rpy.z = yaw * 180.0/M_PI;
  
     // this Vector is then published:
