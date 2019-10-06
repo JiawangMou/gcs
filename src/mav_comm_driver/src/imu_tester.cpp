@@ -17,6 +17,9 @@ using namespace std;
 
 bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& ros_msg){
 
+
+    //----------------DMP Test ---------------//
+
     // if(serial_readings.size() != 18 ||
     //    serial_readings[serial_readings.size() - 1] != 0x0a){
     //         ROS_WARN("Bad frame end. Ignored.");
@@ -56,7 +59,13 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
     // ros_msg.pitch_angle = asin(-2 * (q0*q2 + q1*q3)) * RAD2DEG;
     // ros_msg.roll_angle = atan2(2*(q2*q3 - q0*q1), q0*q0 - q1*q1 - q2*q2 + q3*q3) * RAD2DEG;
 
+    // ros_msg.header.stamp = ros::Time::now();
+
     // return true;
+
+
+
+    //----------------Kalman Test ---------------//
 
     if(serial_readings.size() != 6 ||
        serial_readings[serial_readings.size() - 1] != 0x0a){
@@ -80,6 +89,8 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
     ros_msg.odom.pose.pose.orientation.x = q.getX();
     ros_msg.odom.pose.pose.orientation.y = q.getY();
     ros_msg.odom.pose.pose.orientation.z = q.getZ();
+
+    ros_msg.header.stamp = ros::Time::now();
 
     return true;
 }
