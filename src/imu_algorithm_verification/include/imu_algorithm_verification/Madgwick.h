@@ -1,10 +1,19 @@
 #ifndef _MADGWICK_H_
 #define _MADGWICK_H_
 
+#include <stdint.h>
+#include <math.h>
+
 namespace madgwick{
 
     #define Kp 2.0f   // proportional gain governs rate of convergence to accelerometer/magnetometer
     #define Ki 0.01f   // integral gain governs rate of convergence of gyroscope biases
+
+    #define BIQUAD_Q 1.0f / sqrtf(2.0f)     /* quality factor - 2nd order butterworth*/
+
+    extern float gx_bias;
+    extern float gy_bias;
+    extern float gz_bias;
 
     typedef struct
     {
@@ -19,6 +28,14 @@ namespace madgwick{
 
     } OrientationEstimator;
 
+    typedef struct biquadFilter_s {
+        float b0, b1, b2, a1, a2;
+        float x1, x2, y1, y2;
+    } biquadFilter_t;
+
+    extern biquadFilter_t accFilter[3];
+    extern biquadFilter_t gyroFilter[3];
+
     extern OrientationEstimator estimator;
 
     void IMU_init(OrientationEstimator* estimator);
@@ -26,6 +43,8 @@ namespace madgwick{
                                                        float ax, float ay, float az,
                                                        float mx, float my, float mz,
                                                        unsigned int now);
+
+    float biquadFilterApply(biquadFilter_t *filter, float input);
 
 
 }

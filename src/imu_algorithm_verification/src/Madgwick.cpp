@@ -1,8 +1,23 @@
 #include <imu_algorithm_verification/Madgwick.h>
+#include <stdio.h>
 
 namespace madgwick
 {
   OrientationEstimator estimator;
+
+  biquadFilter_t accFilter[3];
+  biquadFilter_t gyroFilter[3];
+
+  const float accLpfCutHz = 2.0;
+  const float gyroLpfCutHz = 100.0;
+
+  const float accSamplingInterval = /*3045.5*/ 1195;
+
+  float gx_bias = 0.0;
+  float gy_bias = 0.0;
+  float gz_bias = 0.0;
+
+
   /**************************实现函数********************************************
   *函数原型:	   float invSqrt(float x)
   *功　　能:	   快速计算 1/Sqrt(x) 	
@@ -10,14 +25,65 @@ namespace madgwick
   输出参数： 结果
   *******************************************************************************/
   float invSqrt(float x) {
-    float halfx = 0.5f * x;
-    float y = x;
-    long i = *(long*)&y;
-    i = 0x5f3759df - (i>>1);
-    y = *(float*)&i;
-    y = y * (1.5f - (halfx * y * y));
-    return y;
+    // float halfx = 0.5f * x;
+    // float y = x;
+    // long i = *(long*)&y;
+    // i = 0x5f3759df - (i>>1);
+    // y = *(float*)&i;
+    // y = y * (1.5f - (halfx * y * y));
+    // return y;
+    return 1/sqrt(x);
   }
+
+  void biquadFilterInit(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate, float Q)
+  {
+      // setup variables
+      const float omega = 2.0f * M_PI * filterFreq * refreshRate * 0.000001f;
+      const float sn = sin(omega);
+      const float cs = cos(omega);
+      const float alpha = sn / (2.0f * Q);
+
+      float b0 = 0, b1 = 0, b2 = 0, a0 = 0, a1 = 0, a2 = 0;
+
+
+      // 2nd order Butterworth (with Q=1/sqrt(2)) / Butterworth biquad section with Q
+      // described in http://www.ti.com/lit/an/slaa447/slaa447.pdf
+      b0 = (1 - cs) * 0.5f;
+      b1 = 1 - cs;
+      b2 = (1 - cs) * 0.5f;
+      a0 = 1 + alpha;
+      a1 = -2 * cs;
+      a2 = 1 - alpha;
+
+
+      // precompute the coefficients
+      filter->b0 = b0 / a0;
+      filter->b1 = b1 / a0;
+      filter->b2 = b2 / a0;
+      filter->a1 = a1 / a0;
+      filter->a2 = a2 / a0;
+
+      // zero initial samples
+      filter->x1 = filter->x2 = 0;
+      filter->y1 = filter->y2 = 0;
+  }
+
+
+  void biquadFilterInitLPF(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate)
+  {
+      biquadFilterInit(filter, filterFreq, refreshRate, BIQUAD_Q);
+  }
+
+  
+
+  float biquadFilterApply(biquadFilter_t *filter, float input)
+  {
+      const float result = filter->b0 * input + filter->x1;
+      filter->x1 = filter->b1 * input - filter->a1 * result + filter->x2;
+      filter->x2 = filter->b2 * input - filter->a2 * result;
+      return result;
+  }
+
 
   /**************************实现函数********************************************
   *函数原型:	   void IMU_init(void)
@@ -40,6 +106,11 @@ namespace madgwick
       estimator->ey_inte = 0.0;
       estimator->ez_inte = 0.0;
       estimator->last_update = 0;//更新时间
+
+      for (int axis = 0; axis < 3; axis++) {
+            biquadFilterInitLPF(&accFilter[axis], accLpfCutHz, accSamplingInterval);
+            biquadFilterInitLPF(&gyroFilter[axis], gyroLpfCutHz, accSamplingInterval);
+      }
   }
 
   /**************************实现函数********************************************
@@ -52,6 +123,27 @@ namespace madgwick
                                                        float ax, float ay, float az,
                                                        float mx, float my, float mz,
                                                        unsigned int now) {
+
+    static uint32_t gyro_count = 0;
+    if(gyro_count < 4000){
+      gx_bias += gx;
+      gy_bias += gy;
+      gz_bias += gz;
+      gyro_count ++;
+
+    }
+    else if(gyro_count == 4000){
+      gx_bias = gx_bias / gyro_count;
+      gy_bias = gy_bias / gyro_count;
+      gz_bias = gz_bias / gyro_count;
+      gyro_count ++;
+    }
+    else{
+      gx -= gx_bias;
+      gy -= gy_bias;
+      gz -= gz_bias;
+    }
+
     float norm;
   //  float hx, hy, hz, bx, bz;
     float vx, vy, vz;// wx, wy, wz;
@@ -79,6 +171,7 @@ namespace madgwick
     ay = ay * norm;
     az = az * norm;
 
+    // printf("%f,%f,%f\n", ax, ay, az);
 
   //  norm = invSqrt(mx*mx + my*my + mz*mz);          
   //  mx = mx * norm;
@@ -110,9 +203,9 @@ namespace madgwick
   //  ex = (ay*vz - az*vy) + (my*wz - mz*wy);
   //  ey = (az*vx - ax*vz) + (mz*wx - mx*wz);
   //  ez = (ax*vy - ay*vx) + (mx*wy - my*wx);
-    ex = (ay*vz - az*vy);
-    ey = (az*vx - ax*vz);
-    ez = (ax*vy - ay*vx);
+    ex = -(ay*vz - az*vy);
+    ey = -(az*vx - ax*vz);
+    ez = -(ax*vy - ay*vx);
 
     /*
     axyz是机体坐标参照系上，加速度计测出来的重力向量，也就是实际测出来的重力向量。
@@ -125,11 +218,11 @@ namespace madgwick
     estimator->ex_inte = estimator->ex_inte + ex * Ki * halfT;
     estimator->ey_inte = estimator->ey_inte + ey * Ki * halfT;	
     estimator->ez_inte = estimator->ez_inte + ez * Ki * halfT;
-
-    // 用叉积误差来做PI修正陀螺零偏
-    gx = gx + Kp*ex + estimator->ex_inte;
-    gy = gy + Kp*ey + estimator->ey_inte;
-    gz = gz + Kp*ez + estimator->ez_inte;
+  
+    // 用叉积误差来做PI修正陀螺零偏,前10秒Kp*10
+    gx = gx + Kp*ex *(now < 10000000? 10:1) + estimator->ex_inte;
+    gy = gy + Kp*ey *(now < 10000000? 10:1) + estimator->ey_inte;
+    gz = gz + Kp*ez *(now < 10000000? 10:1) + estimator->ez_inte;
 
     }
 

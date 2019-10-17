@@ -145,8 +145,8 @@ int main(int argc, char** argv){
     
      string port = "";
      n.param<std::string>("/mav_driver/port", port, "/dev/ttyUSB0");
-     int baudrate = 0;
-     n.param<int>("/mav_driver/baudrate", baudrate, 115200);
+     int baudrate = 921600;
+     n.param<int>("/mav_driver/baudrate", baudrate, 921600);
 
      try
      {
@@ -170,7 +170,7 @@ int main(int argc, char** argv){
          return -1;
      }
      string serial_data;
-     ros::Rate loop_rate(1500);
+     ros::Rate loop_rate(1000);
      int i;
      while(ros::ok()){
          ros::spinOnce();

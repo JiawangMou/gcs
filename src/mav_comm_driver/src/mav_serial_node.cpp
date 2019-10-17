@@ -189,9 +189,6 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
         }
     
     }
-    
-
-
 
     tf::Quaternion q;
     q.setRPY(ros_msg.roll_angle * DEG2RAD, ros_msg.pitch_angle * DEG2RAD, ros_msg.yaw_angle * DEG2RAD);
@@ -251,17 +248,19 @@ int main(int argc, char** argv){
 
      ros::Rate loop_rate(200);
      int i;
+     string serial_data;
+     
      while(ros::ok()){
          ros::spinOnce();
          if(ros_ser.available()){
             //  ROS_INFO_STREAM("Reading from serial port");
-             string serial_data;
+             
              //获取串口数据
              serial_data = ros_ser.readline(37, "\r\n");
-             for(i = 0 ;i < serial_data.size(); i++){
-                 printf("%02x ",(uint8_t)serial_data[i]);
-             }
-             printf("\n");
+            //  for(i = 0 ;i < serial_data.size(); i++){
+            //      printf("%02x ",(uint8_t)serial_data[i]);
+            //  }
+            //  printf("\n");
              mav_comm_driver::MAVStatus msg;
              std_msgs::Float32 ext_angle, ext_rate;
              if(process_received_data(serial_data, msg, ext_angle, ext_rate)){

@@ -1,0 +1,12 @@
+<launch>
+  
+  <arg name="model" default="$(find rviz_teleop_commander)/urdf/fmav.urdf"/>
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
+  <param name="data_path" type="string" value="$(find imu_algorithm_verification)/data/imu_data_8g_test9(~300Hz, Good).csv"/>
+
+  <node name="testbench" pkg="imu_algorithm_verification" type="testbench" output="screen"/>
+  
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find imu_algorithm_verification)/rviz/test.rviz" output="screen"/>
+
+</launch>
