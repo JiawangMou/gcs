@@ -11,4 +11,8 @@
   
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen"/>
 
+  <node name="quaternion_to_euler_node" pkg="rviz_teleop_commander" type="quaternion_to_euler_node"  output="screen"/>
+
+  <include file= "$(find vicon_bridge)/launch/vicon.launch"/>
+
 </launch>

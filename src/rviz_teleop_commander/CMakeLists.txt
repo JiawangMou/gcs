@@ -10,9 +10,10 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS 
  std_msgs
+ geometry_msgs
  message_generation
- message_runtime
  rviz
+ tf
  )
 
 add_message_files(FILES
@@ -27,7 +28,10 @@ catkin_package(
   CATKIN_DEPENDS
   std_msgs
   message_runtime
+  geometry_msgs
+  tf
   )
+
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
@@ -51,12 +55,20 @@ qt5_wrap_cpp(
   include/rviz_teleop_commander/teleop_pad.h
 )
 
+
+add_executable(quaternion_to_euler_node src/quaternion_to_euler.cpp)
+target_link_libraries(quaternion_to_euler_node
+  ${catkin_LIBRARIES}
+)
+## add_dependencies(quaternion_to_euler_node ${PROJECT_NAME}_generate_messages_cpp)
+
 ## Here we specify the list of source files, including the output of
 ## the previous command which is stored in ``${MOC_FILES}``.
 set(SOURCE_FILES
   src/teleop_pad.cpp 
   ${MOC_FILES}
 )
+
 
 ## An rviz plugin is just a shared library, so here we declare the
 ## library to be called ``${PROJECT_NAME}`` (which is
