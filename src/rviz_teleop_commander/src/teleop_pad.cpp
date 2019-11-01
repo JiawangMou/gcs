@@ -7,7 +7,6 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QTimer>
 #include <QPixmap>
 
 #include <geometry_msgs/Twist.h>
@@ -466,12 +465,16 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     vis_pub_ = nh_.advertise< visualization_msgs::Marker>("/mav_vis", 10);
     mav_config_pub_ = nh_.advertise<mav_comm_driver::ModeConfig>("/mode_config", 10);
 
+    //飞行模式手柄下发计时器
+    joystick_send_timer_ = new QTimer( this );
+
     //检测断联计时器
     QTimer* connection_check_timer = new QTimer( this );
     mav_down_msg_cnt_ = mav_down_msg_cnt_prev_ = 0;
     is_connected = false;
 
     connect( connection_check_timer, SIGNAL( timeout() ), this, SLOT( checkConnection() ));
+    connect( joystick_send_timer_, SIGNAL( timeout() ), this, SLOT( uploadJoystick() ));
     connect( upload_to_mav_,  SIGNAL( clicked() ), this, SLOT( uploadConfig() ));
     connect( mode_sel_combo_, SIGNAL(currentIndexChanged(int)), this, SLOT(setParamMode(int)));
     connect( pid_id_btn_group_, SIGNAL(buttonClicked(int)), this, SLOT(changeTuningAxis(int)));
@@ -483,12 +486,24 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     param_mode_ = fault_mode;
     setParamMode(0);
 
+    system("rosrun joy joy_node&");
+
+}
+
+FMAVStatusPanel::~FMAVStatusPanel(){
+    
+    system("rosnode kill /joy_node");
+    //pclose(joystick_);
 }
 
 void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr& msg){
 
     mav_down_msg_cnt_ ++;
-    is_connected = true;
+    
+    if(!is_connected){
+        is_connected = true;
+    }
+    
     if(!upload_to_mav_ -> isEnabled())
         upload_to_mav_ -> setEnabled(true);
 
@@ -651,12 +666,28 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr
 
 }
 
+void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
+
+    if(msg -> buttons[7] && is_connected){
+        enableThrottle();
+    }
+
+    // uint8_t old_throttle = throttle_pwm_set_;
+    throttle_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * 100) : 0;
+    throttle_set_spin_ -> setValue(throttle_pwm_set_);
+
+    // if(is_throttle_enabled_ && is_connected && (old_throttle != throttle_pwm_set_))
+    //     uploadConfig();
+}
+
 void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
 
     getParamValues();
     Q_EMIT configChanged();
     mav_comm_driver::ModeConfig msg;
     uint i;
+
+    if(!is_connected) return;
 
     switch(param_mode_){
         case(fault_mode):
@@ -696,6 +727,22 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
                 msg.data.push_back(0);
             
             msg.data.push_back(climb_pwm_set_);
+            msg.data.push_back(0x0d);
+            msg.data.push_back(0x0a);
+        break;
+        case(flight_mode):
+            msg.mode_id = flight_mode;
+            msg.data.reserve(8);
+            msg.data.push_back(flight_mode);
+            msg.data.push_back(0);
+            msg.data.push_back(0);
+            msg.data.push_back(0);
+            msg.data.push_back(0);
+            if(is_throttle_enabled_)
+                msg.data.push_back(throttle_pwm_set_);
+            else
+                msg.data.push_back(0);
+            
             msg.data.push_back(0x0d);
             msg.data.push_back(0x0a);
         break;
@@ -770,8 +817,16 @@ void FMAVStatusPanel::checkConnection(){
         palette.setColor(QPalette::WindowText, QColor(Qt::white));
         mode_label_ -> setPalette(palette);
         upload_to_mav_ -> setEnabled(false);
-	throttle_enable_ -> setEnabled(false);
+	    throttle_enable_ -> setEnabled(false);
+        if(is_throttle_enabled_){
+            throttle_pwm_set_ = 0;
+            throttle_set_spin_ -> setValue(throttle_pwm_set_);
+            is_throttle_enabled_ = false;
+            throttle_enable_ -> setText("启动");
+        }
         boxLayoutVisible(time_layout_, false);
+        if(joystick_send_timer_ -> isActive())
+            joystick_send_timer_ -> stop();
     }
     else{
         mav_down_msg_cnt_prev_ = mav_down_msg_cnt_;
@@ -787,7 +842,10 @@ void FMAVStatusPanel::setParamMode(int index){
     boxLayoutVisible(throttle_set_layout_, false);
     boxLayoutVisible(climb_set_layout_, false);
     boxLayoutVisible(pid_tuning_layout_, false);
-
+    joystick_sub_.shutdown();
+    if(joystick_send_timer_ -> isActive())
+        joystick_send_timer_ -> stop();
+    
     switch(index){
         case(0):    //FAULT_MODE
             param_mode_ = fault_mode;
@@ -809,6 +867,8 @@ void FMAVStatusPanel::setParamMode(int index){
             break;
         case(3):    //FLIGHT_MODE
             param_mode_ = flight_mode;
+            boxLayoutVisible(throttle_set_layout_, true);
+            joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
             break;
         case(4):    //TUNING MODE
             param_mode_ = tuning_mode;
@@ -920,14 +980,14 @@ void FMAVStatusPanel::enableThrottle(){
         throttle_enable_ -> setText("启动");
     }
     else{
-        if(throttle_pwm_set_ == 0){
-            QMessageBox::warning(this, "警告", "当前设置油门量为0");
-            return;
-        }
+        // if(throttle_pwm_set_ == 0){
+        //     QMessageBox::warning(this, "警告", "当前设置油门量为0");
+        //     return;
+        // }
 
         is_throttle_enabled_ = true;
         count = 0;
-        while(cur_throttle_pwm_ == 0){
+        do {
             if(count >= 100){
                 is_throttle_enabled_ = false;
                 QMessageBox::critical(this, "错误", "发送超时");
@@ -937,11 +997,21 @@ void FMAVStatusPanel::enableThrottle(){
             ros::spinOnce();
             r.sleep();
             count ++;
-        }
+        } while(cur_throttle_pwm_ != throttle_pwm_set_);
 	    
         throttle_enable_ -> setText("急停");
     }
+
+    if(is_throttle_enabled_ && param_mode_ == flight_mode)
+        joystick_send_timer_ -> start(100);
+    else if(joystick_send_timer_ -> isActive())
+        joystick_send_timer_ -> stop();
     
+}
+
+void FMAVStatusPanel::uploadJoystick(){
+    if(is_throttle_enabled_)
+        uploadConfig();
 }
 
 void FMAVStatusPanel::boxLayoutVisible(QBoxLayout *boxLayout, bool bVisible)

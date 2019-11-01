@@ -56,11 +56,11 @@ qt5_wrap_cpp(
 )
 
 
-add_executable(quaternion_to_euler_node src/quaternion_to_euler.cpp)
-target_link_libraries(quaternion_to_euler_node
+add_executable(vicon_mav_data_save src/vicon_mav_data_save.cpp)
+target_link_libraries(vicon_mav_data_save
   ${catkin_LIBRARIES}
 )
-## add_dependencies(quaternion_to_euler_node ${PROJECT_NAME}_generate_messages_cpp)
+## add_dependencies(vicon_mav_data_save ${PROJECT_NAME}_generate_messages_cpp)
 
 ## Here we specify the list of source files, including the output of
 ## the previous command which is stored in ``${MOC_FILES}``.

@@ -5,14 +5,12 @@
   <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
   <param name="logo_path" type="string" value="$(find rviz_teleop_commander)/ico/ico.png"/>
   <param name="/mav_driver/port" type="string" value="/dev/ttyUSB0"/>
-  <param name="/mav_driver/baudrate" type="int" value="115200" />
+  <param name="/mav_driver/baudrate" type="int" value="460800" />
 
   <node name="mav_comm_driver_node" pkg="mav_comm_driver" type="mav_comm_driver_node" output="screen"/>
   
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen" required="true" />
 
-  <node name="quaternion_to_euler_node" pkg="rviz_teleop_commander" type="quaternion_to_euler_node"  output="screen"/>
-
-  <include file= "$(find vicon_bridge)/launch/vicon.launch"/>
+  <!-- <include file= "$(find vicon_bridge)/launch/vicon.launch"/> -->
 
 </launch>

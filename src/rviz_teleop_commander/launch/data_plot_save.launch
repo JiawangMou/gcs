@@ -1,0 +1,13 @@
+<launch>
+  
+  <include file= "$(find vicon_bridge)/launch/vicon.launch"/>
+
+  <param name="/vicon_target" type="string" value="vicon/FMAV/FMAV"/>
+  <param name="/mav_topic" type="string" value="/received_data"/>
+  <param name="/mav_output_file_name" type="string" value="../mav1.csv"/>
+  <param name="/vicon_output_file_name" type="string" value="../vicon1.csv"/>
+
+  <node name="vicon_mav_data_save" pkg="rviz_teleop_commander" type="vicon_mav_data_save" output="screen"/>
+  <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot" output="screen" args="/vicon_rpy_angles/x:y /received_data/roll_angle"/>
+  
+</launch>

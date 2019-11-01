@@ -9,6 +9,9 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/String.h>
 #include <tf/transform_broadcaster.h>
+#include <sensor_msgs/Joy.h>
+
+#include <stdio.h>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -21,6 +24,7 @@
 #include <QCheckBox>
 #include <QButtonGroup>
 #include <QMessageBox>
+#include <QTimer>
 
 #include <mav_comm_driver/MAVStatus.h>
 #include <mav_comm_driver/ModeConfig.h>
@@ -50,6 +54,8 @@ public:
     // 构造函数，在类中会用到QWidget的实例来实现GUI界面，这里先初始化为0即可
     FMAVStatusPanel( QWidget* parent = 0 );
 
+    ~FMAVStatusPanel();
+
     // 重载rviz::Panel积累中的函数，用于保存、加载配置文件中的数据，在我们这个plugin
     // 中，数据就是topic的名称
     virtual void load( const rviz::Config& config );
@@ -68,8 +74,10 @@ protected Q_SLOTS:
     void setParamMode(int);
     void changeTuningAxis(int);
     void enableThrottle();
+    void uploadJoystick();
 
 protected:
+        void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
         void boxLayoutVisible(QBoxLayout *, bool);
         void getParamValues();
         void setPanelValues();
@@ -237,7 +245,13 @@ protected:
     ros::Publisher vis_pub_;
     ros::Publisher mav_config_pub_;
     ros::Subscriber mav_down_sub_;
+    ros::Subscriber joystick_sub_;
     tf::TransformBroadcaster tf_pub_;
+
+    QTimer* joystick_send_timer_;
+
+    //子进程句柄
+    // FILE* joystick_;
 
     bool is_connected;
 

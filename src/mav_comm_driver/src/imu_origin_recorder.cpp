@@ -41,59 +41,18 @@ void motor_callback(const std_msgs::Bool::ConstPtr &msg){
 
 bool process_received_data(string& serial_readings){
     
-    //     if(serial_readings.size() != 24 ||
-    //    serial_readings[serial_readings.size() - 1] != 0x0a){
-    //         ROS_WARN("Bad frame end. Ignored.");
-    //         return false;
-    // }
-
-    // ros_msg.header.stamp = ros::Time::now();
-
-
     // int16_t tmp_16;
     // //Gyro raw values
     // tmp_16 = ((uint8_t)serial_readings[0]) | (((uint8_t)serial_readings[1]) << 8);
     // ros_msg.angular_velocity.x = tmp_16 / 16.384 * DEG2RAD;
-    // fout << tmp_16 << ",";
-    // tmp_16 = ((uint8_t)serial_readings[2]) | (((uint8_t)serial_readings[3]) << 8);
-    // ros_msg.angular_velocity.y = tmp_16 / 16.384 * DEG2RAD;
-    // fout << tmp_16 << ",";
-    // tmp_16 = ((uint8_t)serial_readings[4]) | (((uint8_t)serial_readings[5]) << 8);
-    // ros_msg.angular_velocity.z = tmp_16 / 16.384 * DEG2RAD;
-    // fout << tmp_16 << ",";
 
     // //Acc raw values
     // tmp_16 = ((uint8_t)serial_readings[6]) | (((uint8_t)serial_readings[7]) << 8);
     // ros_msg.linear_acceleration.x = tmp_16 / 16384.0 * G2MS2;
-    // fout << tmp_16 << ",";
-    // tmp_16 = ((uint8_t)serial_readings[8]) | (((uint8_t)serial_readings[9]) << 8);
-    // ros_msg.linear_acceleration.y = tmp_16 / 16384.0 * G2MS2;
-    // fout << tmp_16 << ",";
-    // tmp_16 = ((uint8_t)serial_readings[10]) | (((uint8_t)serial_readings[11]) << 8);
-    // ros_msg.linear_acceleration.z = tmp_16 / 16384.0 * G2MS2;
-    // fout << tmp_16 << ",";
-
-    // //Mag raw values
-    // tmp_16 = ((uint8_t)serial_readings[12]) | (((uint8_t)serial_readings[13]) << 8);
-    // fout << tmp_16 << ",";
-    // tmp_16 = ((uint8_t)serial_readings[14]) | (((uint8_t)serial_readings[15]) << 8);
-    // fout << tmp_16 << ",";
-    // tmp_16 = ((uint8_t)serial_readings[16]) | (((uint8_t)serial_readings[17]) << 8);
-    // fout << tmp_16 << ",";
-
-    // //Time in ms
-    // uint32_t tmp_32;
-    // tmp_32 = ((uint8_t)serial_readings[18]) | (((uint8_t)serial_readings[19]) << 8)
-    //         | (((uint8_t)serial_readings[20]) << 16) | (((uint8_t)serial_readings[21]) << 24);
-    // fout << tmp_32 << endl;
-
-    // ros_msg.header.stamp = ros::Time::now();
-
-    // return true;
 
     int i;
 
-    if(serial_readings.size() != 22 ||
+    if(serial_readings.size() != 24 ||
        serial_readings[serial_readings.size() - 1] != 0x0a){
             ROS_WARN("Bad frame end. Ignored.");
             for(i = 0 ;i < serial_readings.size(); i++){
@@ -121,12 +80,16 @@ bool process_received_data(string& serial_readings){
     tmp_16 = ((uint8_t)serial_readings[10]) | (((uint8_t)serial_readings[11]) << 8);
     fout << tmp_16 << ",";
 
+    //temperature
+    tmp_16 = ((uint8_t)serial_readings[12]) | (((uint8_t)serial_readings[13]) << 8);
+    fout << tmp_16 << ",";
+
     //Time in ms
     uint64_t tmp_64;
-    tmp_64 = (serial_readings[12] & 0x00000000000000ff) | ((serial_readings[13] & 0x00000000000000ff) << 8)
-            | ((serial_readings[14] & 0x00000000000000ff) << 16) | ((serial_readings[15] & 0x00000000000000ff) << 24)
-            | (((uint64_t)(serial_readings[16] & 0x00000000000000ff)) << 32) | (((uint64_t)(serial_readings[17] & 0x00000000000000ff)) << 40)
-            | (((uint64_t)(serial_readings[18] & 0x00000000000000ff)) << 48) | (((uint64_t)(serial_readings[19] & 0x00000000000000ff)) << 56);
+    tmp_64 = (serial_readings[14] & 0x00000000000000ff) | ((serial_readings[15] & 0x00000000000000ff) << 8)
+            | ((serial_readings[16] & 0x00000000000000ff) << 16) | ((serial_readings[17] & 0x00000000000000ff) << 24)
+            | (((uint64_t)(serial_readings[18] & 0x00000000000000ff)) << 32) | (((uint64_t)(serial_readings[19] & 0x00000000000000ff)) << 40)
+            | (((uint64_t)(serial_readings[20] & 0x00000000000000ff)) << 48) | (((uint64_t)(serial_readings[21] & 0x00000000000000ff)) << 56);
     fout << tmp_64 << endl;
 
     return true;
@@ -145,8 +108,8 @@ int main(int argc, char** argv){
     
      string port = "";
      n.param<std::string>("/mav_driver/port", port, "/dev/ttyUSB0");
-     int baudrate = 921600;
-     n.param<int>("/mav_driver/baudrate", baudrate, 921600);
+     int baudrate = 115200;
+     n.param<int>("/mav_driver/baudrate", baudrate, 115200);
 
      try
      {
@@ -170,16 +133,16 @@ int main(int argc, char** argv){
          return -1;
      }
      string serial_data;
-     ros::Rate loop_rate(1000);
+     ros::Rate loop_rate(300);
      int i;
      while(ros::ok()){
          ros::spinOnce();
          if(ros_ser.available()){
              
              //获取串口数据
-             serial_data = ros_ser.readline(22, "\r\n");
-             if(serial_data.size() != 22){
-                 serial_data += ros_ser.readline(22, "\r\n");
+             serial_data = ros_ser.readline(24, "\r\n");
+             if(serial_data.size() != 24){
+                 serial_data += ros_ser.readline(24, "\r\n");
              }
             //  for(i = 0 ;i < serial_data.size(); i++){
             //      printf("%02x ",(uint8_t)serial_data[i]);

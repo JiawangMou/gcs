@@ -66,11 +66,11 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
             return false;
        }
     
-    if((ros_msg.mode_id == mav_comm_driver::MAVStatus::FAULT_MODE && serial_readings.size() != 27) ||
-       (ros_msg.mode_id == mav_comm_driver::MAVStatus::START_MODE && serial_readings.size() != 29) ||
-       (ros_msg.mode_id == mav_comm_driver::MAVStatus::MANUAL_MODE && serial_readings.size() != 29) ||
-       (ros_msg.mode_id == mav_comm_driver::MAVStatus::FLIGHT_MODE && serial_readings.size() != 29) ||
-       (ros_msg.mode_id == mav_comm_driver::MAVStatus::TUNING_MODE && serial_readings.size() != 37)){
+    if((ros_msg.mode_id == mav_comm_driver::MAVStatus::FAULT_MODE && serial_readings.size() != 23) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::START_MODE && serial_readings.size() != 25) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::MANUAL_MODE && serial_readings.size() != 25) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::FLIGHT_MODE && serial_readings.size() != 25) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::TUNING_MODE && serial_readings.size() != 33)){
             ROS_WARN("Frame length wrong. Ignored.");
             return false;
        }
@@ -118,11 +118,11 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
         ros_msg.pid_int_err = tmp / 10.0;
 
         tmp = (uint8_t)serial_readings[14] | (((uint8_t)serial_readings[15]) << 8);
-        ros_msg.ext_p_output = tmp / 100.0;
+        ros_msg.ext_p_output = tmp / 10.0;
         tmp = (uint8_t)serial_readings[16] | (((uint8_t)serial_readings[17]) << 8);
-        ros_msg.ext_i_output = tmp / 100.0;
+        ros_msg.ext_i_output = tmp / 10.0;
         tmp = (uint8_t)serial_readings[18] | (((uint8_t)serial_readings[19]) << 8);
-        ros_msg.ext_d_output = tmp / 100.0;
+        ros_msg.ext_d_output = tmp / 10.0;
         tmp = (uint8_t)serial_readings[20] | (((uint8_t)serial_readings[21]) << 8);
         ros_msg.int_p_output = tmp / 100.0;
         tmp = (uint8_t)serial_readings[22] | (((uint8_t)serial_readings[23]) << 8);
@@ -135,10 +135,10 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
         ros_msg.mid_servo_pwm = (uint8_t) serial_readings[29];
         ros_msg.throttle_pwm = (uint8_t) serial_readings[30];
 
-        tmp = (uint8_t)serial_readings[31] | (((uint8_t)serial_readings[32]) << 8);
-        ext_meas_angle.data = tmp / 100.0;
-        tmp = (uint8_t)serial_readings[33] | (((uint8_t)serial_readings[34]) << 8);
-        ext_meas_rate.data = tmp / 10.0;
+        // tmp = (uint8_t)serial_readings[31] | (((uint8_t)serial_readings[32]) << 8);
+        // ext_meas_angle.data = tmp / 100.0;
+        // tmp = (uint8_t)serial_readings[33] | (((uint8_t)serial_readings[34]) << 8);
+        // ext_meas_rate.data = tmp / 10.0;
 
     }
     else{
@@ -176,17 +176,17 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
             ros_msg.throttle_pwm = (uint8_t) serial_readings[21];
             ros_msg.climb_pwm = (uint8_t) serial_readings[22];
 
-            tmp = (uint8_t)serial_readings[23] | (((uint8_t)serial_readings[24]) << 8);
-            ext_meas_angle.data = tmp / 100.0;
-            tmp = (uint8_t)serial_readings[25] | (((uint8_t)serial_readings[26]) << 8);
-            ext_meas_rate.data = tmp / 10.0;
+            // tmp = (uint8_t)serial_readings[23] | (((uint8_t)serial_readings[24]) << 8);
+            // ext_meas_angle.data = tmp / 100.0;
+            // tmp = (uint8_t)serial_readings[25] | (((uint8_t)serial_readings[26]) << 8);
+            // ext_meas_rate.data = tmp / 10.0;
         }
-        else{
-            tmp = (uint8_t)serial_readings[21] | (((uint8_t)serial_readings[22]) << 8);
-            ext_meas_angle.data = tmp / 100.0;
-            tmp = (uint8_t)serial_readings[23] | (((uint8_t)serial_readings[24]) << 8);
-            ext_meas_rate.data = tmp / 10.0;
-        }
+        // else{
+        //     tmp = (uint8_t)serial_readings[21] | (((uint8_t)serial_readings[22]) << 8);
+        //     ext_meas_angle.data = tmp / 100.0;
+        //     tmp = (uint8_t)serial_readings[23] | (((uint8_t)serial_readings[24]) << 8);
+        //     ext_meas_rate.data = tmp / 10.0;
+        // }
     
     }
 
@@ -256,7 +256,7 @@ int main(int argc, char** argv){
             //  ROS_INFO_STREAM("Reading from serial port");
              
              //获取串口数据
-             serial_data = ros_ser.readline(37, "\r\n");
+             serial_data = ros_ser.readline(33, "\r\n");
             //  for(i = 0 ;i < serial_data.size(); i++){
             //      printf("%02x ",(uint8_t)serial_data[i]);
             //  }
