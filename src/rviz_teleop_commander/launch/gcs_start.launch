@@ -7,6 +7,8 @@
   <param name="/mav_driver/port" type="string" value="/dev/ttyUSB0"/>
   <param name="/mav_driver/baudrate" type="int" value="460800" />
 
+  <node name="joy_node" pkg="joy" type="joy_node" output="screen"/>
+  
   <node name="mav_comm_driver_node" pkg="mav_comm_driver" type="mav_comm_driver_node" output="screen"/>
   
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen" required="true" />
