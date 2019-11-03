@@ -7,7 +7,15 @@
 #include <tf/transform_datatypes.h>
 
 #include <mav_comm_driver/ModeConfig.h>
+//!!!!!!!!!
+#define TWO_WING
+
+#ifdef TWO_WING
 #include <mav_comm_driver/MAVStatus.h>
+#endif
+#ifdef FOUR_WING
+#include <mav_comm_driver/MAVStatus4Wing.h>
+#endif
 
 serial::Serial ros_ser;
 
@@ -48,8 +56,14 @@ void send_config(const mav_comm_driver::ModeConfig::ConstPtr& msg){
 
 }
 
-bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& ros_msg,
-                            std_msgs::Float32& ext_meas_angle, std_msgs::Float32& ext_meas_rate){
+bool process_received_data(string& serial_readings,
+    #ifdef TWO_WING
+        mav_comm_driver::MAVStatus& ros_msg
+    #endif
+    #ifdef FOUR_WING
+        mav_comm_driver::MAVStatus4Wing& ros_msg
+    #endif
+){
 
     if(serial_readings[serial_readings.size() - 1] != 0x0a){
         ROS_WARN("Bad frame end. Ignored.");
@@ -135,11 +149,6 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
         ros_msg.mid_servo_pwm = (uint8_t) serial_readings[29];
         ros_msg.throttle_pwm = (uint8_t) serial_readings[30];
 
-        // tmp = (uint8_t)serial_readings[31] | (((uint8_t)serial_readings[32]) << 8);
-        // ext_meas_angle.data = tmp / 100.0;
-        // tmp = (uint8_t)serial_readings[33] | (((uint8_t)serial_readings[34]) << 8);
-        // ext_meas_rate.data = tmp / 10.0;
-
     }
     else{
 
@@ -175,18 +184,7 @@ bool process_received_data(string& serial_readings, mav_comm_driver::MAVStatus& 
         if(ros_msg.mode_id != mav_comm_driver::MAVStatus::FAULT_MODE){
             ros_msg.throttle_pwm = (uint8_t) serial_readings[21];
             ros_msg.climb_pwm = (uint8_t) serial_readings[22];
-
-            // tmp = (uint8_t)serial_readings[23] | (((uint8_t)serial_readings[24]) << 8);
-            // ext_meas_angle.data = tmp / 100.0;
-            // tmp = (uint8_t)serial_readings[25] | (((uint8_t)serial_readings[26]) << 8);
-            // ext_meas_rate.data = tmp / 10.0;
         }
-        // else{
-        //     tmp = (uint8_t)serial_readings[21] | (((uint8_t)serial_readings[22]) << 8);
-        //     ext_meas_angle.data = tmp / 100.0;
-        //     tmp = (uint8_t)serial_readings[23] | (((uint8_t)serial_readings[24]) << 8);
-        //     ext_meas_rate.data = tmp / 10.0;
-        // }
     
     }
 
