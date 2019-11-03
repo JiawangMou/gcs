@@ -1,21 +1,12 @@
 #include <ros/ros.h>
 #include <serial/serial.h>
 #include <std_msgs/String.h>
-#include <std_msgs/Empty.h>
-#include <std_msgs/Float32.h>
 #include <string.h>
 #include <tf/transform_datatypes.h>
 
 #include <mav_comm_driver/ModeConfig.h>
-//!!!!!!!!!
-#define TWO_WING
-
-#ifdef TWO_WING
 #include <mav_comm_driver/MAVStatus.h>
-#endif
-#ifdef FOUR_WING
-#include <mav_comm_driver/MAVStatus4Wing.h>
-#endif
+
 
 serial::Serial ros_ser;
 
@@ -57,13 +48,7 @@ void send_config(const mav_comm_driver::ModeConfig::ConstPtr& msg){
 }
 
 bool process_received_data(string& serial_readings,
-    #ifdef TWO_WING
-        mav_comm_driver::MAVStatus& ros_msg
-    #endif
-    #ifdef FOUR_WING
-        mav_comm_driver::MAVStatus4Wing& ros_msg
-    #endif
-){
+                           mav_comm_driver::MAVStatus& ros_msg){
 
     if(serial_readings[serial_readings.size() - 1] != 0x0a){
         ROS_WARN("Bad frame end. Ignored.");
@@ -211,10 +196,6 @@ int main(int argc, char** argv){
 
      //发布主题sensor
      ros::Publisher mav_data_pub = n.advertise<mav_comm_driver::MAVStatus>("/received_data", 10);
-
-     //发布外部测量数据
-     ros::Publisher ext_measure_angle_pub = n.advertise<std_msgs::Float32>("/ext_angle", 10);
-     ros::Publisher ext_measure_rate_pub = n.advertise<std_msgs::Float32>("/ext_rate", 10);
     
      string port = "";
      n.param<std::string>("/mav_driver/port", port, "/dev/ttyUSB0");
@@ -260,11 +241,8 @@ int main(int argc, char** argv){
             //  }
             //  printf("\n");
              mav_comm_driver::MAVStatus msg;
-             std_msgs::Float32 ext_angle, ext_rate;
-             if(process_received_data(serial_data, msg, ext_angle, ext_rate)){
+             if(process_received_data(serial_data, msg)){
                 mav_data_pub.publish(msg);
-                ext_measure_angle_pub.publish(ext_angle);
-                ext_measure_rate_pub.publish(ext_rate);
                 // ROS_INFO("Success!");
              }
                 
