@@ -486,13 +486,13 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     param_mode_ = fault_mode;
     setParamMode(0);
 
-    system("rosrun joy joy_node&");
+    // system("rosrun joy joy_node&");
 
 }
 
 FMAVStatusPanel::~FMAVStatusPanel(){
     
-    system("rosnode kill /joy_node");
+    // system("rosnode kill /joy_node");
     //pclose(joystick_);
 }
 
