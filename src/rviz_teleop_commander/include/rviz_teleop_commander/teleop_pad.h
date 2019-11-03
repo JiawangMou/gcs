@@ -30,6 +30,12 @@
 #include <mav_comm_driver/ModeConfig.h>
 #endif
 
+#ifdef TWO_WING
+    #define THROTTLE_MAX 100
+#else
+    #define THROTTLE_MAX 999
+#endif
+
 class QLineEdit;
 
 namespace rviz_teleop_commander
@@ -74,6 +80,7 @@ protected Q_SLOTS:
     void setParamMode(int);
     void changeTuningAxis(int);
     void enableThrottle();
+    void enableThrottle2();
     void uploadJoystick();
 
 protected:
@@ -109,17 +116,24 @@ protected:
     QLabel* pitch_rate_label_;
     QLabel* yaw_rate_front_label_;
     QLabel* yaw_rate_label_;
-
+#ifdef TWO_WING
     QLabel* mid_servo_label_;
     QLabel* mid_servo_front_label_;
+#endif
     QLabel* left_servo_label_;
     QLabel* left_servo_front_label_;
     QLabel* right_servo_label_;
     QLabel* right_servo_front_label_;
     QLabel* throttle_label_;
     QLabel* throttle_front_label_;
+#ifdef FOUR_WING
+    QLabel* throttle_2_label_;
+    QLabel* throttle_2_front_label_;
+#endif
+#ifdef TWO_WING
     QLabel* climb_label_;
     QLabel* climb_front_label_;
+#endif
     QLabel* pid_id_front_label_;
     QLabel* pid_id_label_;
 
@@ -134,7 +148,9 @@ protected:
     uint8_t cur_mid_servo_pwm_;
     uint8_t cur_left_servo_pwm_;
     uint8_t cur_right_servo_pwm_;
-    uint8_t cur_throttle_pwm_;
+    uint16_t cur_throttle_pwm_;
+    uint16_t cur_throttle_2_pwm_;
+
     uint8_t cur_climb_pwm_;
     uint32_t cur_time_ms_;
     uint8_t cur_pid_id_;
@@ -161,27 +177,44 @@ protected:
     QLabel* left_servo_set_front_label_;
     QSlider* left_servo_set_slider_;
     QSpinBox* left_servo_set_spin_;
+#ifdef TWO_WING
     QHBoxLayout* mid_servo_set_layout_;
     QLabel* mid_servo_set_front_label_;
     QSlider* mid_servo_set_slider_;
     QSpinBox* mid_servo_set_spin_;
+#endif
     QHBoxLayout* throttle_set_layout_;
     QLabel* throttle_set_front_label_;
     QSlider* throttle_set_slider_;
     QSpinBox* throttle_set_spin_;
     QPushButton* throttle_enable_;
+#ifdef FOUR_WING
+    QHBoxLayout* throttle_2_set_layout_;
+    QLabel* throttle_2_set_front_label_;
+    QSlider* throttle_2_set_slider_;
+    QSpinBox* throttle_2_set_spin_;
+    QPushButton* throttle_2_enable_;
+#endif
+#ifdef TWO_WING
     QHBoxLayout* climb_set_layout_;
     QLabel* climb_set_front_label_;
     QSlider* climb_set_slider_;
     QSpinBox* climb_set_spin_;
+#endif
 
     //PWM 参数存储变量
     uint8_t mid_servo_pwm_set_;
+    uint8_t climb_pwm_set_;
     uint8_t left_servo_pwm_set_;
     uint8_t right_servo_pwm_set_;
-    uint8_t throttle_pwm_set_;
-    uint8_t climb_pwm_set_;
+    uint16_t throttle_pwm_set_;
+#ifdef FOUR_WING
+    uint16_t throttle_2_pwm_set_;
+#endif
     bool is_throttle_enabled_;
+#ifdef FOUR_WING
+    bool is_throttle_2_enabled_;
+#endif
 
     //调参模式的控件
     QVBoxLayout* pid_tuning_layout_;

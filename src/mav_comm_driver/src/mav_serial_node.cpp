@@ -64,7 +64,9 @@ bool process_received_data(string& serial_readings,
             ROS_WARN("Bad frame ID. Ignored.");
             return false;
        }
-    
+
+#ifdef TWO_WING
+
     if((ros_msg.mode_id == mav_comm_driver::MAVStatus::FAULT_MODE && serial_readings.size() != 23) ||
        (ros_msg.mode_id == mav_comm_driver::MAVStatus::START_MODE && serial_readings.size() != 25) ||
        (ros_msg.mode_id == mav_comm_driver::MAVStatus::MANUAL_MODE && serial_readings.size() != 25) ||
@@ -73,9 +75,24 @@ bool process_received_data(string& serial_readings,
             ROS_WARN("Frame length wrong. Ignored.");
             return false;
        }
+#else
+    #ifdef FOUR_WING
+
+    if((ros_msg.mode_id == mav_comm_driver::MAVStatus::FAULT_MODE && serial_readings.size() != 22) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::START_MODE && serial_readings.size() != 26) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::MANUAL_MODE && serial_readings.size() != 26) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::FLIGHT_MODE && serial_readings.size() != 26) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::TUNING_MODE && serial_readings.size() != 33)){
+            ROS_WARN("Frame length wrong. Ignored.");
+            return false;
+       }
+
+    #endif
+#endif
 
     int16_t tmp;
     uint32_t tmp_32;
+    uint16_t tmp_u16;
 
     if(ros_msg.mode_id == mav_comm_driver::MAVStatus::TUNING_MODE){
 
@@ -113,8 +130,14 @@ bool process_received_data(string& serial_readings,
         //pid values
         tmp = (uint8_t)serial_readings[10] | (((uint8_t)serial_readings[11]) << 8);
         ros_msg.pid_ext_err = tmp / 100.0;
+#ifdef TWO_WING
         tmp = (uint8_t)serial_readings[12] | (((uint8_t)serial_readings[13]) << 8);
         ros_msg.pid_int_err = tmp / 10.0;
+#else
+        uint16_t tmp_u16;
+        tmp_u16 = (uint8_t)serial_readings[12] | (((uint8_t)serial_readings[13]) << 8);
+        ros_msg.right_throttle_pwm = tmp_u16;
+#endif
 
         tmp = (uint8_t)serial_readings[14] | (((uint8_t)serial_readings[15]) << 8);
         ros_msg.ext_p_output = tmp / 10.0;
@@ -131,9 +154,17 @@ bool process_received_data(string& serial_readings,
 
         ros_msg.right_servo_pwm = (uint8_t) serial_readings[27];
         ros_msg.left_servo_pwm = (uint8_t) serial_readings[28];
-        ros_msg.mid_servo_pwm = (uint8_t) serial_readings[29];
-        ros_msg.throttle_pwm = (uint8_t) serial_readings[30];
 
+#ifdef TWO_WING
+
+        ros_msg.mid_servo_pwm = (uint8_t) serial_readings[29];
+        ros_msg.left_throttle_pwm = (uint8_t) serial_readings[30];
+#else
+    #ifdef FOUR_WING
+        tmp_u16 = (uint8_t)serial_readings[29] | (((uint8_t)serial_readings[30]) << 8);
+        ros_msg.left_throttle_pwm = tmp_u16;
+    #endif
+#endif
     }
     else{
 
@@ -164,11 +195,24 @@ bool process_received_data(string& serial_readings,
         //pwm values
         ros_msg.right_servo_pwm = (uint8_t) serial_readings[18];
         ros_msg.left_servo_pwm = (uint8_t) serial_readings[19];
+
+#ifdef TWO_WING
         ros_msg.mid_servo_pwm = (uint8_t) serial_readings[20];
+#endif
 
         if(ros_msg.mode_id != mav_comm_driver::MAVStatus::FAULT_MODE){
-            ros_msg.throttle_pwm = (uint8_t) serial_readings[21];
+
+#ifdef TWO_WING
+            ros_msg.left_throttle_pwm = (uint8_t) serial_readings[21];
             ros_msg.climb_pwm = (uint8_t) serial_readings[22];
+#else
+    #ifdef FOUR_WING
+            tmp_u16 = (uint8_t)serial_readings[20] | (((uint8_t)serial_readings[21]) << 8);
+            ros_msg.left_throttle_pwm = tmp_u16;
+            tmp_u16 = (uint8_t)serial_readings[22] | (((uint8_t)serial_readings[23]) << 8);
+            ros_msg.right_throttle_pwm = tmp_u16;
+    #endif
+#endif
         }
     
     }
@@ -179,7 +223,6 @@ bool process_received_data(string& serial_readings,
     ros_msg.odom.pose.pose.orientation.x = q.getX();
     ros_msg.odom.pose.pose.orientation.y = q.getY();
     ros_msg.odom.pose.pose.orientation.z = q.getZ();
-
 
     return true;
     

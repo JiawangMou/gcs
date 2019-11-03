@@ -53,9 +53,9 @@ Panels:
     PIDIntLowlimitPitch: 100
     PIDIntLowlimitRoll: 100
     PIDIntLowlimitYaw: 1
-    PIDIntPitchSet0: 0.100000001
+    PIDIntPitchSet0: 0.0700000003
     PIDIntPitchSet1: 0
-    PIDIntPitchSet2: 0.170000002
+    PIDIntPitchSet2: 0.100000001
     PIDIntRollSet0: 0.100000001
     PIDIntRollSet1: 0
     PIDIntRollSet2: 0.100000001
@@ -69,7 +69,7 @@ Panels:
     PIDSetValueRoll: 0
     PIDSetValueYaw: 3
     RightServoPWMSet: 147
-    ThrottleServoPWMSet: 0
+    ThrottleServoPWMSet: 100
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:

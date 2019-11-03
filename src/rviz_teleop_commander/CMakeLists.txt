@@ -8,6 +8,19 @@ project(rviz_teleop_commander)
 
 add_compile_options(-std=c++11)
 
+if(BODY_FRAME STREQUAL 2WING)
+  add_definitions(-DTWO_WING)
+else()
+  if(BODY_FRAME STREQUAL 4WING)
+    add_definitions(-DFOUR_WING)
+  else()
+    message(FATAL_ERROR "
+    Please specify the body frame using
+      -DBODY_FRAME=2WING or 4WING
+    ")
+  endif()
+endif()
+
 find_package(catkin REQUIRED COMPONENTS 
  std_msgs
  geometry_msgs

@@ -88,7 +88,6 @@ add_message_files(
   FILES
   MAVStatus.msg
   ModeConfig.msg
-  MAVStatus4Wing.msg
 )
 
 ## Generate services in the 'srv' folder
