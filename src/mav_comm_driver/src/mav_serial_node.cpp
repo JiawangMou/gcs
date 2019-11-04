@@ -204,7 +204,7 @@ bool process_received_data(string& serial_readings,
 
 #ifdef TWO_WING
             ros_msg.left_throttle_pwm = (uint8_t) serial_readings[21];
-            ros_msg.climb_pwm = (uint8_t) serial_readings[22];
+            //ros_msg.climb_pwm = (uint8_t) serial_readings[22];
 #else
     #ifdef FOUR_WING
             tmp_u16 = (uint8_t)serial_readings[20] | (((uint8_t)serial_readings[21]) << 8);
@@ -214,6 +214,19 @@ bool process_received_data(string& serial_readings,
     #endif
 #endif
         }
+#ifdef TWO_WING
+        // temporarily use ext output as roll int output...
+        if(ros_msg.mode_id == mav_comm_driver::MAVStatus::FLIGHT_MODE){
+            tmp = (uint8_t)serial_readings[22] | (((uint8_t)serial_readings[23]) << 8);
+            ros_msg.int_p_output = tmp;
+            tmp = (uint8_t)serial_readings[24] | (((uint8_t)serial_readings[25]) << 8);
+            ros_msg.int_d_output = tmp;
+            tmp = (uint8_t)serial_readings[26] | (((uint8_t)serial_readings[27]) << 8);
+            ros_msg.ext_p_output = tmp;
+            tmp = (uint8_t)serial_readings[28] | (((uint8_t)serial_readings[29]) << 8);
+            ros_msg.ext_d_output = tmp;
+        }
+#endif
     
     }
 

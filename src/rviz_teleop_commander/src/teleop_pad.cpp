@@ -317,7 +317,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     throttle_2_set_layout_ = new QHBoxLayout;
     throttle_2_enable_ = new QPushButton("启动");
     throttle_2_set_layout_ -> addWidget(throttle_2_enable_);
-    throttle_2_set_front_label_ = new QLabel("扑翼油门PWM: ");
+    throttle_2_set_front_label_ = new QLabel("扑翼2油门PWM: ");
     throttle_2_set_front_label_ -> setAlignment(Qt::AlignCenter);
     throttle_2_set_layout_ -> addWidget(throttle_2_set_front_label_);
     throttle_2_set_slider_ = new QSlider(Qt::Horizontal);
@@ -734,7 +734,9 @@ void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
 
     if(msg -> buttons[7] && is_connected){
         enableThrottle();
+#ifdef FOUR_WING
         enableThrottle2();
+#endif
     }
 
     // uint8_t old_throttle = throttle_pwm_set_;
@@ -962,6 +964,16 @@ void FMAVStatusPanel::checkConnection(){
             is_throttle_enabled_ = false;
             throttle_enable_ -> setText("启动");
         }
+#ifdef FOUR_WING
+        throttle_2_enable_ -> setEnabled(false);
+        if(is_throttle_2_enabled_){
+            throttle_2_pwm_set_ = 0;
+            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+            is_throttle_2_enabled_ = false;
+            throttle_2_enable_ -> setText("启动");
+        }
+#endif
+
         boxLayoutVisible(time_layout_, false);
         if(joystick_send_timer_ -> isActive())
             joystick_send_timer_ -> stop();
@@ -1160,19 +1172,20 @@ void FMAVStatusPanel::enableThrottle(){
         // }
 
         is_throttle_enabled_ = true;
-        count = 0;
-        do {
-            if(count >= 100){
-                is_throttle_enabled_ = false;
-                QMessageBox::critical(this, "错误", "发送超时");
-                return;
-            }
-            uploadConfig();
-            ros::spinOnce();
-            r.sleep();
-            count ++;
-        } while(cur_throttle_pwm_ != throttle_pwm_set_);
-	    
+        // count = 0;
+        // do {
+        //     if(count >= 100){
+        //         is_throttle_enabled_ = false;
+        //         QMessageBox::critical(this, "错误", "发送超时");
+        //         return;
+        //     }
+        //     uploadConfig();
+        //     ros::spinOnce();
+        //     r.sleep();
+        //     count ++;
+        // } while(cur_throttle_pwm_ != throttle_pwm_set_);
+        uploadConfig();
+
         throttle_enable_ -> setText("急停");
     }
 
@@ -1213,19 +1226,19 @@ void FMAVStatusPanel::enableThrottle2(){
         // }
 
         is_throttle_2_enabled_ = true;
-        count = 0;
-        do {
-            if(count >= 100){
-                is_throttle_2_enabled_ = false;
-                QMessageBox::critical(this, "错误", "发送超时");
-                return;
-            }
-            uploadConfig();
-            ros::spinOnce();
-            r.sleep();
-            count ++;
-        } while(cur_throttle_2_pwm_ != throttle_2_pwm_set_);
-	    
+        // count = 0;
+        // do {
+        //     if(count >= 100){
+        //         is_throttle_2_enabled_ = false;
+        //         QMessageBox::critical(this, "错误", "发送超时");
+        //         return;
+        //     }
+        //     uploadConfig();
+        //     ros::spinOnce();
+        //     r.sleep();
+        //     count ++;
+        // } while(cur_throttle_2_pwm_ != throttle_2_pwm_set_);
+	    uploadConfig();
         throttle_2_enable_ -> setText("急停");
     }
     

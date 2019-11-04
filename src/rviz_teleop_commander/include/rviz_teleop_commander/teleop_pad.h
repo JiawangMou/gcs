@@ -80,7 +80,9 @@ protected Q_SLOTS:
     void setParamMode(int);
     void changeTuningAxis(int);
     void enableThrottle();
+#ifdef FOUR_WING
     void enableThrottle2();
+#endif
     void uploadJoystick();
 
 protected:
