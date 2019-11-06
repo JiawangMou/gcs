@@ -562,8 +562,13 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr
     if(!upload_to_mav_ -> isEnabled())
         upload_to_mav_ -> setEnabled(true);
 
-    if(!throttle_enable_ -> isEnabled())
-	throttle_enable_ -> setEnabled(true);
+    if(!throttle_enable_ -> isEnabled()){
+        throttle_enable_ -> setEnabled(true);
+#ifdef FOUR_WING
+        throttle_2_enable_ -> setEnabled(true);
+#endif
+    }
+	
 
     mode_id_ = msg -> mode_id;
 
