@@ -70,7 +70,7 @@ bool process_received_data(string& serial_readings,
     if((ros_msg.mode_id == mav_comm_driver::MAVStatus::FAULT_MODE && serial_readings.size() != 23) ||
        (ros_msg.mode_id == mav_comm_driver::MAVStatus::START_MODE && serial_readings.size() != 25) ||
        (ros_msg.mode_id == mav_comm_driver::MAVStatus::MANUAL_MODE && serial_readings.size() != 25) ||
-       (ros_msg.mode_id == mav_comm_driver::MAVStatus::FLIGHT_MODE && serial_readings.size() != 25) ||
+       (ros_msg.mode_id == mav_comm_driver::MAVStatus::FLIGHT_MODE && serial_readings.size() != 32) ||
        (ros_msg.mode_id == mav_comm_driver::MAVStatus::TUNING_MODE && serial_readings.size() != 33)){
             ROS_WARN("Frame length wrong. Ignored.");
             return false;
