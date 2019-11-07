@@ -745,10 +745,10 @@ void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
     }
 
     // uint8_t old_throttle = throttle_pwm_set_;
-    throttle_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * 100) : 0;
+    throttle_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * THROTTLE_MAX) : 0;
     throttle_set_spin_ -> setValue(throttle_pwm_set_);
 #ifdef FOUR_WING
-    throttle_2_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * 100) : 0;
+    throttle_2_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * (THROTTLE_MAX - 100)) : 0;
     throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
 #endif
     // if(is_throttle_enabled_ && is_connected && (old_throttle != throttle_pwm_set_))
@@ -1012,6 +1012,12 @@ void FMAVStatusPanel::setParamMode(int index){
             throttle_enable_ -> setText("启动");
         }
     }
+
+#ifdef FOUR_WING
+    throttle_set_slider_ -> setRange(0, THROTTLE_MAX);
+    throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX);
+#endif
+
 #ifdef FOUR_WING
     if(is_throttle_2_enabled_){
         if(is_connected)
@@ -1061,12 +1067,20 @@ void FMAVStatusPanel::setParamMode(int index){
             param_mode_ = flight_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
+#ifdef FOUR_WING
+            throttle_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
+            throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
+#endif
             break;
 
         case(4):    //TUNING MODE
             param_mode_ = tuning_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             boxLayoutVisible(pid_tuning_layout_, true);
+#ifdef FOUR_WING
+            throttle_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
+            throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
+#endif
             break;
     }
 }
