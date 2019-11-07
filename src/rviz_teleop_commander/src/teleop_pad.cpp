@@ -925,16 +925,12 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             if(is_throttle_enabled_){
                 msg.data.push_back(throttle_pwm_set_);
                 msg.data.push_back(throttle_pwm_set_ >> 8);
+                msg.data.push_back(throttle_pwm_set_);
+                msg.data.push_back(throttle_pwm_set_ >> 8);
             }
             else{
                 msg.data.push_back(0);
                 msg.data.push_back(0);
-            }
-            if(is_throttle_2_enabled_){
-                msg.data.push_back(throttle_2_pwm_set_);
-                msg.data.push_back(throttle_2_pwm_set_ >> 8);
-            }
-            else{
                 msg.data.push_back(0);
                 msg.data.push_back(0);
             }
@@ -1006,6 +1002,29 @@ void FMAVStatusPanel::setParamMode(int index){
     if(joystick_send_timer_ -> isActive())
         joystick_send_timer_ -> stop();
     
+    if(is_throttle_enabled_){
+        if(is_connected)
+            enableThrottle();
+        else{
+            throttle_pwm_set_ = 0;
+            throttle_set_spin_ -> setValue(throttle_pwm_set_);
+            is_throttle_enabled_ = false;
+            throttle_enable_ -> setText("启动");
+        }
+    }
+#ifdef FOUR_WING
+    if(is_throttle_2_enabled_){
+        if(is_connected)
+            enableThrottle2();
+        else{
+            throttle_2_pwm_set_ = 0;
+            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+            is_throttle_2_enabled_ = false;
+            throttle_2_enable_ -> setText("启动");
+        }
+    }
+#endif
+
     switch(index){
         case(0):    //FAULT_MODE
             param_mode_ = fault_mode;
@@ -1041,18 +1060,12 @@ void FMAVStatusPanel::setParamMode(int index){
         case(3):    //FLIGHT_MODE
             param_mode_ = flight_mode;
             boxLayoutVisible(throttle_set_layout_, true);
-#ifdef FOUR_WING
-            boxLayoutVisible(throttle_2_set_layout_, true);
-#endif
             joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
             break;
 
         case(4):    //TUNING MODE
             param_mode_ = tuning_mode;
             boxLayoutVisible(throttle_set_layout_, true);
-#ifdef FOUR_WING
-            boxLayoutVisible(throttle_2_set_layout_, true);
-#endif
             boxLayoutVisible(pid_tuning_layout_, true);
             break;
     }
@@ -1157,7 +1170,7 @@ void FMAVStatusPanel::enableThrottle(){
     if(is_throttle_enabled_){
 	    is_throttle_enabled_ = false;
         count = 0;
-        while(cur_throttle_pwm_ != 0){
+        do{
             if(count >= 100){
                 is_throttle_enabled_ = true;
                 QMessageBox::critical(this, "错误", "发送超时");
@@ -1167,7 +1180,7 @@ void FMAVStatusPanel::enableThrottle(){
             ros::spinOnce();
             r.sleep();
             count ++;
-        }
+        }while(cur_throttle_pwm_ != 0);
         throttle_enable_ -> setText("启动");
     }
     else{
@@ -1211,7 +1224,7 @@ void FMAVStatusPanel::enableThrottle2(){
     if(is_throttle_2_enabled_){
 	    is_throttle_2_enabled_ = false;
         count = 0;
-        while(cur_throttle_2_pwm_ != 0){
+        do{
             if(count >= 100){
                 is_throttle_2_enabled_ = true;
                 QMessageBox::critical(this, "错误", "发送超时");
@@ -1221,7 +1234,7 @@ void FMAVStatusPanel::enableThrottle2(){
             ros::spinOnce();
             r.sleep();
             count ++;
-        }
+        }while(cur_throttle_2_pwm_ != 0);
         throttle_2_enable_ -> setText("启动");
     }
     else{
@@ -1293,6 +1306,9 @@ void FMAVStatusPanel::save( rviz::Config config ) const
     config.mapSetValue("LeftServoPWMSet", left_servo_pwm_set_);
     config.mapSetValue("RightServoPWMSet", right_servo_pwm_set_);
     config.mapSetValue("ThrottleServoPWMSet", throttle_pwm_set_);
+#ifdef FOUR_WING
+    config.mapSetValue("Throttle2ServoPWMSet", throttle_2_pwm_set_);
+#endif
     config.mapSetValue("ClimbServoPWMSet", climb_pwm_set_);
 
     config.mapSetValue("PIDExtRollSet0", pid_ext_set_[2][0]);
@@ -1343,6 +1359,9 @@ void FMAVStatusPanel::load( const rviz::Config& config )
     config.mapGetValue("LeftServoPWMSet", &v_tmp); left_servo_pwm_set_ = v_tmp.toUInt();
     config.mapGetValue("RightServoPWMSet", &v_tmp); right_servo_pwm_set_ = v_tmp.toUInt();
     config.mapGetValue("ThrottleServoPWMSet", &v_tmp); throttle_pwm_set_ = v_tmp.toUInt();
+#ifdef FOUR_WING
+    config.mapGetValue("Throttle2ServoPWMSet", &v_tmp); throttle_2_pwm_set_ = v_tmp.toUInt();
+#endif
     config.mapGetValue("ClimbServoPWMSet", &v_tmp); climb_pwm_set_ = v_tmp.toUInt();
 
     config.mapGetValue("PIDExtRollSet0", &v_tmp); pid_ext_set_[2][0] = v_tmp.toFloat();

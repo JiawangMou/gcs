@@ -5,10 +5,16 @@ project(mav_comm_driver)
 add_compile_options(-std=c++11)
 
 if(BODY_FRAME STREQUAL 2WING)
+  message(INFO "
+    Body frame: two wing.
+  ")
   add_definitions(-DTWO_WING)
 else()
   if(BODY_FRAME STREQUAL 4WING)
     add_definitions(-DFOUR_WING)
+    message(INFO "
+    Body frame: four wing.
+    ")
   else()
     message(FATAL_ERROR "
     Please specify the body frame using
