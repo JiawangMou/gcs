@@ -2,7 +2,45 @@ cmake_minimum_required(VERSION 2.8.3)
 project(mav_comm_driver)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
+
+if(BODY_FRAME STREQUAL 2WING)
+  message(INFO "
+    Body frame: two wing.
+  ")
+  add_definitions(-DTWO_WING)
+else()
+  if(BODY_FRAME STREQUAL 4WING)
+    add_definitions(-DFOUR_WING)
+    message(INFO "
+    Body frame: four wing.
+    ")
+  else()
+    message(FATAL_ERROR "
+    Please specify the body frame using
+      -DBODY_FRAME=2WING or 4WING
+    ")
+  endif()
+endif()
+
+# OPTION(SET_TWO_WING
+#   "Two wing setup"
+#   OFF)
+
+# OPTION(SET_FOUR_WING
+#   "Four wing setup"
+#   OFF)
+
+# if(SET_TWO_WING AND SET_FOUR_WING)
+#   message(FATAL_ERROR "
+#     Attempt to build 2-wing and 4-wing simultaneously.
+#   ")
+# endif()
+
+# if(SET_TWO_WING)
+#   add_definitions(-DTWO_WING)
+# endif()
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)

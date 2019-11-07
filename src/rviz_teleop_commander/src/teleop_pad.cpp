@@ -24,11 +24,17 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
   : rviz::Panel( parent )
 {
     //初始化变量
+#ifdef TWO_WING
     mid_servo_pwm_set_ = 0;
+    climb_pwm_set_ = 0;
+#endif
     left_servo_pwm_set_ = 0;
     right_servo_pwm_set_ = 0;
     throttle_pwm_set_ = 0;
-    climb_pwm_set_ = 0;
+#ifdef FOUR_WING
+    throttle_2_pwm_set_ = 0;
+#endif
+
     uint i, j;
     for(i = 0; i < 3; i ++){
         for(j = 0; j < 3; j ++){
@@ -44,6 +50,9 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     pid_freq_ = 0;
     pid_id_set_ = 0;
     is_throttle_enabled_ = false;
+#ifdef FOUR_WING
+    is_throttle_2_enabled_ = 0;
+#endif
 
     // 标志logo
     std::string logo_img_path;
@@ -136,6 +145,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     yaw_layout -> addWidget(yaw_rate_label_);
 
     QVBoxLayout* servos_layout = new QVBoxLayout;
+#ifdef TWO_WING
     mid_servo_front_label_ = new QLabel("中舵机PWM: ");
     mid_servo_front_label_ -> setAlignment(Qt::AlignCenter);
     servos_layout -> addWidget(mid_servo_front_label_);
@@ -144,6 +154,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mid_servo_label_ -> setFrameShape(QFrame::Panel);
     mid_servo_label_ -> setFrameShadow(QFrame::Sunken);
     servos_layout -> addWidget(mid_servo_label_);
+#endif
     left_servo_front_label_ = new QLabel("左舵机PWM: ");
     left_servo_front_label_ -> setAlignment(Qt::AlignCenter);
     servos_layout -> addWidget(left_servo_front_label_);
@@ -170,6 +181,17 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     throttle_label_ -> setFrameShape(QFrame::Panel);
     throttle_label_ -> setFrameShadow(QFrame::Sunken);
     otherpwm_layout -> addWidget(throttle_label_);
+#ifdef FOUR_WING
+    throttle_2_front_label_ = new QLabel("扑翼2油门PWM: ");
+    throttle_2_front_label_ -> setAlignment(Qt::AlignCenter);
+    otherpwm_layout -> addWidget(throttle_2_front_label_);
+    throttle_2_label_ = new QLabel("-");
+    throttle_2_label_ -> setAlignment(Qt::AlignCenter);
+    throttle_2_label_ -> setFrameShape(QFrame::Panel);
+    throttle_2_label_ -> setFrameShadow(QFrame::Sunken);
+    otherpwm_layout -> addWidget(throttle_2_label_);
+#endif
+#ifdef TWO_WING
     climb_front_label_ = new QLabel("爬行机构PWM: ");
     climb_front_label_ -> setAlignment(Qt::AlignCenter);
     otherpwm_layout -> addWidget(climb_front_label_);
@@ -178,6 +200,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     climb_label_ -> setFrameShape(QFrame::Panel);
     climb_label_ -> setFrameShadow(QFrame::Sunken);
     otherpwm_layout -> addWidget(climb_label_);
+#endif
 
     pid_id_front_label_ = new QLabel("当前调参PID: ");
     pid_id_front_label_ -> setAlignment(Qt::AlignCenter);
@@ -222,6 +245,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mode_sel_combo_ -> setCurrentIndex(0);
 
     //PWM调节栏(开始模式，手动模式)
+#ifdef TWO_WING
     mid_servo_set_layout_ = new QHBoxLayout;
     mid_servo_set_front_label_ = new QLabel("中舵机PWM: ");
     mid_servo_set_front_label_ -> setAlignment(Qt::AlignCenter);
@@ -237,6 +261,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mid_servo_set_layout_ -> setStretchFactor(mid_servo_set_spin_, 1);
     connect(mid_servo_set_spin_, SIGNAL(valueChanged(int)), mid_servo_set_slider_, SLOT(setValue(int)));
     connect(mid_servo_set_slider_, SIGNAL(valueChanged(int)), mid_servo_set_spin_, SLOT(setValue(int)));
+#endif
 
     left_servo_set_layout_ = new QHBoxLayout;
     left_servo_set_front_label_ = new QLabel("左舵机PWM: ");
@@ -277,10 +302,10 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     throttle_set_front_label_ -> setAlignment(Qt::AlignCenter);
     throttle_set_layout_ -> addWidget(throttle_set_front_label_);
     throttle_set_slider_ = new QSlider(Qt::Horizontal);
-    throttle_set_slider_ -> setRange(0, 100);
+    throttle_set_slider_ -> setRange(0, THROTTLE_MAX);
     throttle_set_layout_ -> addWidget(throttle_set_slider_);
     throttle_set_spin_ = new QSpinBox();
-    throttle_set_spin_ -> setRange(0, 100);
+    throttle_set_spin_ -> setRange(0, THROTTLE_MAX);
     throttle_set_layout_ -> addWidget(throttle_set_spin_);
     throttle_set_layout_ -> setStretchFactor(throttle_set_slider_, 4);
     throttle_set_layout_ -> setStretchFactor(throttle_set_front_label_, 2);
@@ -288,6 +313,26 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect(throttle_set_spin_, SIGNAL(valueChanged(int)), throttle_set_slider_, SLOT(setValue(int)));
     connect(throttle_set_slider_, SIGNAL(valueChanged(int)), throttle_set_spin_, SLOT(setValue(int)));
 
+#ifdef FOUR_WING
+    throttle_2_set_layout_ = new QHBoxLayout;
+    throttle_2_enable_ = new QPushButton("启动");
+    throttle_2_set_layout_ -> addWidget(throttle_2_enable_);
+    throttle_2_set_front_label_ = new QLabel("扑翼2油门PWM: ");
+    throttle_2_set_front_label_ -> setAlignment(Qt::AlignCenter);
+    throttle_2_set_layout_ -> addWidget(throttle_2_set_front_label_);
+    throttle_2_set_slider_ = new QSlider(Qt::Horizontal);
+    throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX);
+    throttle_2_set_layout_ -> addWidget(throttle_2_set_slider_);
+    throttle_2_set_spin_ = new QSpinBox();
+    throttle_2_set_spin_ -> setRange(0, THROTTLE_MAX);
+    throttle_2_set_layout_ -> addWidget(throttle_2_set_spin_);
+    throttle_2_set_layout_ -> setStretchFactor(throttle_2_set_slider_, 4);
+    throttle_2_set_layout_ -> setStretchFactor(throttle_2_set_front_label_, 2);
+    throttle_2_set_layout_ -> setStretchFactor(throttle_2_set_spin_, 1);
+    connect(throttle_2_set_spin_, SIGNAL(valueChanged(int)), throttle_2_set_slider_, SLOT(setValue(int)));
+    connect(throttle_2_set_slider_, SIGNAL(valueChanged(int)), throttle_2_set_spin_, SLOT(setValue(int)));
+#endif
+#ifdef TWO_WING
     climb_set_layout_ = new QHBoxLayout;
     climb_set_front_label_ = new QLabel("爬行机构PWM: ");
     climb_set_front_label_ -> setAlignment(Qt::AlignCenter);
@@ -303,7 +348,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     climb_set_layout_ -> setStretchFactor(climb_set_spin_, 1);
     connect(climb_set_spin_, SIGNAL(valueChanged(int)), climb_set_slider_, SLOT(setValue(int)));
     connect(climb_set_slider_, SIGNAL(valueChanged(int)), climb_set_spin_, SLOT(setValue(int)));
-
+#endif
 
     //PID Tuning Controls
     pid_tuning_layout_ = new QVBoxLayout();
@@ -452,11 +497,18 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     layout -> addLayout(para_menu);
     layout -> addWidget(mode_sel_combo_);
     layout -> addWidget(spline_4);
+#ifdef TWO_WING
     layout -> addLayout(mid_servo_set_layout_);
+#endif
     layout -> addLayout(left_servo_set_layout_);
     layout -> addLayout(right_servo_set_layout_);
     layout -> addLayout(throttle_set_layout_);
+#ifdef FOUR_WING
+    layout -> addLayout(throttle_2_set_layout_);
+#endif
+#ifdef TWO_WING
     layout -> addLayout(climb_set_layout_);
+#endif
     layout -> addLayout(pid_tuning_layout_);
     layout -> addStretch();
     setLayout( layout );
@@ -479,6 +531,9 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect( mode_sel_combo_, SIGNAL(currentIndexChanged(int)), this, SLOT(setParamMode(int)));
     connect( pid_id_btn_group_, SIGNAL(buttonClicked(int)), this, SLOT(changeTuningAxis(int)));
     connect( throttle_enable_, SIGNAL(clicked()), this, SLOT(enableThrottle()));
+#ifdef FOUR_WING
+    connect( throttle_2_enable_, SIGNAL(clicked()), this, SLOT(enableThrottle2()));
+#endif
 
     //T=500ms
     connection_check_timer -> start( 500 );
@@ -507,8 +562,13 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr
     if(!upload_to_mav_ -> isEnabled())
         upload_to_mav_ -> setEnabled(true);
 
-    if(!throttle_enable_ -> isEnabled())
-	throttle_enable_ -> setEnabled(true);
+    if(!throttle_enable_ -> isEnabled()){
+        throttle_enable_ -> setEnabled(true);
+#ifdef FOUR_WING
+        throttle_2_enable_ -> setEnabled(true);
+#endif
+    }
+	
 
     mode_id_ = msg -> mode_id;
 
@@ -567,7 +627,8 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr
     cur_mid_servo_pwm_ = msg -> mid_servo_pwm;
     cur_left_servo_pwm_ = msg -> left_servo_pwm;
     cur_right_servo_pwm_ = msg -> right_servo_pwm;
-    cur_throttle_pwm_ = msg -> throttle_pwm;
+    cur_throttle_pwm_ = msg -> left_throttle_pwm;
+    cur_throttle_2_pwm_ = msg -> right_throttle_pwm;
     cur_climb_pwm_ = msg -> climb_pwm;
     cur_time_ms_ = msg -> board_time;
     cur_pid_id_ = msg -> pid_id;
@@ -587,16 +648,24 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr
     sprintf(numstr, "%.2f", cur_yaw_rate_);
     yaw_rate_label_ -> setText(numstr);
 
-    sprintf(numstr, "%d", cur_mid_servo_pwm_);
+#ifdef TWO_WING
+    sprintf(numstr, "%u", cur_mid_servo_pwm_);
     mid_servo_label_ -> setText(numstr);
-    sprintf(numstr, "%d", cur_left_servo_pwm_);
+#endif
+    sprintf(numstr, "%u", cur_left_servo_pwm_);
     left_servo_label_ -> setText(numstr);
-    sprintf(numstr, "%d", cur_right_servo_pwm_);
+    sprintf(numstr, "%u", cur_right_servo_pwm_);
     right_servo_label_ -> setText(numstr);
-    sprintf(numstr, "%d", cur_throttle_pwm_);
+    sprintf(numstr, "%u", cur_throttle_pwm_);
     throttle_label_ -> setText(numstr);
-    sprintf(numstr, "%d", cur_climb_pwm_);
+#ifdef FOUR_WING
+    sprintf(numstr, "%u", cur_throttle_2_pwm_);
+    throttle_2_label_ -> setText(numstr);
+#endif
+#ifdef TWO_WING
+    sprintf(numstr, "%u", cur_climb_pwm_);
     climb_label_ -> setText(numstr);
+#endif
 
     if(mode_id_ == tuning_mode){
 
@@ -670,12 +739,18 @@ void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
 
     if(msg -> buttons[7] && is_connected){
         enableThrottle();
+#ifdef FOUR_WING
+        enableThrottle2();
+#endif
     }
 
     // uint8_t old_throttle = throttle_pwm_set_;
     throttle_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * 100) : 0;
     throttle_set_spin_ -> setValue(throttle_pwm_set_);
-
+#ifdef FOUR_WING
+    throttle_2_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * 100) : 0;
+    throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+#endif
     // if(is_throttle_enabled_ && is_connected && (old_throttle != throttle_pwm_set_))
     //     uploadConfig();
 }
@@ -697,28 +772,56 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             msg.data.push_back(0x0d);
             msg.data.push_back(0x0a);
         break;
+
         case(start_mode):
             msg.mode_id = start_mode;
+#ifdef TWO_WING
             msg.data.reserve(7);
+#else
+            msg.data.reserve(9);
+#endif
             msg.data.push_back(start_mode);
             msg.data.push_back(right_servo_pwm_set_);
             msg.data.push_back(left_servo_pwm_set_);
+#ifdef TWO_WING
             msg.data.push_back(mid_servo_pwm_set_);
-
             if(is_throttle_enabled_)
                 msg.data.push_back(throttle_pwm_set_);
             else
                 msg.data.push_back(0);
-            
+#else
+            if(is_throttle_enabled_){
+                msg.data.push_back(throttle_pwm_set_);
+                msg.data.push_back(throttle_pwm_set_ >> 8);
+            }
+            else{
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+            }
+            if(is_throttle_2_enabled_){
+                msg.data.push_back(throttle_2_pwm_set_);
+                msg.data.push_back(throttle_2_pwm_set_ >> 8);
+            }
+            else{
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+            }
+#endif
             msg.data.push_back(0x0d);
             msg.data.push_back(0x0a);
         break;
+
         case(manual_mode):
             msg.mode_id = manual_mode;
+#ifdef TWO_WING
             msg.data.reserve(8);
+#else
+            msg.data.reserve(9);
+#endif
             msg.data.push_back(manual_mode);
             msg.data.push_back(right_servo_pwm_set_);
             msg.data.push_back(left_servo_pwm_set_);
+#ifdef TWO_WING
             msg.data.push_back(mid_servo_pwm_set_);
 
             if(is_throttle_enabled_)
@@ -727,9 +830,28 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
                 msg.data.push_back(0);
             
             msg.data.push_back(climb_pwm_set_);
+#else
+            if(is_throttle_enabled_){
+                msg.data.push_back(throttle_pwm_set_);
+                msg.data.push_back(throttle_pwm_set_ >> 8);
+            }
+            else{
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+            }
+            if(is_throttle_2_enabled_){
+                msg.data.push_back(throttle_2_pwm_set_);
+                msg.data.push_back(throttle_2_pwm_set_ >> 8);
+            }
+            else{
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+            }
+#endif
             msg.data.push_back(0x0d);
             msg.data.push_back(0x0a);
         break;
+
         case(flight_mode):
             msg.mode_id = flight_mode;
             msg.data.reserve(8);
@@ -746,9 +868,14 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             msg.data.push_back(0x0d);
             msg.data.push_back(0x0a);
         break;
+
         case(tuning_mode):
             msg.mode_id = tuning_mode;
+#ifdef TWO_WING
             msg.data.reserve(26);
+#else
+            msg.data.reserve(29);
+#endif
             msg.data.push_back(tuning_mode);
 
             int16_t tmp_16;
@@ -789,11 +916,25 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             msg.data.push_back(tmp_16);
             msg.data.push_back(tmp_16 >> 8);
 
+#ifdef TWO_WING
             if(is_throttle_enabled_)
                 msg.data.push_back(throttle_pwm_set_);
             else
                 msg.data.push_back(0);
-            
+#else
+            if(is_throttle_enabled_){
+                msg.data.push_back(throttle_pwm_set_);
+                msg.data.push_back(throttle_pwm_set_ >> 8);
+                msg.data.push_back(throttle_pwm_set_);
+                msg.data.push_back(throttle_pwm_set_ >> 8);
+            }
+            else{
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+            }
+#endif
 
             msg.data.push_back(0x0d);
             msg.data.push_back(0x0a);
@@ -824,6 +965,16 @@ void FMAVStatusPanel::checkConnection(){
             is_throttle_enabled_ = false;
             throttle_enable_ -> setText("启动");
         }
+#ifdef FOUR_WING
+        throttle_2_enable_ -> setEnabled(false);
+        if(is_throttle_2_enabled_){
+            throttle_2_pwm_set_ = 0;
+            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+            is_throttle_2_enabled_ = false;
+            throttle_2_enable_ -> setText("启动");
+        }
+#endif
+
         boxLayoutVisible(time_layout_, false);
         if(joystick_send_timer_ -> isActive())
             joystick_send_timer_ -> stop();
@@ -837,39 +988,81 @@ void FMAVStatusPanel::setParamMode(int index){
 
 
     boxLayoutVisible(right_servo_set_layout_, false);
-    boxLayoutVisible(mid_servo_set_layout_, false);
     boxLayoutVisible(left_servo_set_layout_, false);
     boxLayoutVisible(throttle_set_layout_, false);
+#ifdef FOUR_WING
+    boxLayoutVisible(throttle_2_set_layout_, false);
+#endif
+#ifdef TWO_WING
+    boxLayoutVisible(mid_servo_set_layout_, false);
     boxLayoutVisible(climb_set_layout_, false);
+#endif
     boxLayoutVisible(pid_tuning_layout_, false);
     joystick_sub_.shutdown();
     if(joystick_send_timer_ -> isActive())
         joystick_send_timer_ -> stop();
     
+    if(is_throttle_enabled_){
+        if(is_connected)
+            enableThrottle();
+        else{
+            throttle_pwm_set_ = 0;
+            throttle_set_spin_ -> setValue(throttle_pwm_set_);
+            is_throttle_enabled_ = false;
+            throttle_enable_ -> setText("启动");
+        }
+    }
+#ifdef FOUR_WING
+    if(is_throttle_2_enabled_){
+        if(is_connected)
+            enableThrottle2();
+        else{
+            throttle_2_pwm_set_ = 0;
+            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+            is_throttle_2_enabled_ = false;
+            throttle_2_enable_ -> setText("启动");
+        }
+    }
+#endif
+
     switch(index){
         case(0):    //FAULT_MODE
             param_mode_ = fault_mode;
             break;
+
         case(1):    //START_MODE
             param_mode_ = start_mode;
             boxLayoutVisible(right_servo_set_layout_, true);
+#ifdef TWO_WING
             boxLayoutVisible(mid_servo_set_layout_, true);
+#endif
             boxLayoutVisible(left_servo_set_layout_, true);
             boxLayoutVisible(throttle_set_layout_, true);
+#ifdef FOUR_WING
+            boxLayoutVisible(throttle_2_set_layout_, true);
+#endif
             break;
+
         case(2):    //MANUAL MODE
             param_mode_ = manual_mode;
             boxLayoutVisible(right_servo_set_layout_, true);
+#ifdef TWO_WING
             boxLayoutVisible(mid_servo_set_layout_, true);
+            boxLayoutVisible(climb_set_layout_, true);
+#endif
             boxLayoutVisible(left_servo_set_layout_, true);
             boxLayoutVisible(throttle_set_layout_, true);
-            boxLayoutVisible(climb_set_layout_, true);
+#ifdef FOUR_WING
+            boxLayoutVisible(throttle_2_set_layout_, true);
+#endif
             break;
+
         case(3):    //FLIGHT_MODE
             param_mode_ = flight_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
             break;
+
         case(4):    //TUNING MODE
             param_mode_ = tuning_mode;
             boxLayoutVisible(throttle_set_layout_, true);
@@ -880,11 +1073,17 @@ void FMAVStatusPanel::setParamMode(int index){
 
 void FMAVStatusPanel::getParamValues(){
 
+#ifdef TWO_WING
     mid_servo_pwm_set_ = mid_servo_set_spin_ -> value();
+    climb_pwm_set_ = climb_set_spin_ -> value();
+#endif
     left_servo_pwm_set_ = left_servo_set_spin_ -> value();
     right_servo_pwm_set_ = right_servo_set_spin_ -> value();
     throttle_pwm_set_ = throttle_set_spin_ -> value();
-    climb_pwm_set_ = climb_set_spin_ -> value();
+#ifdef FOUR_WING
+    throttle_2_pwm_set_ = throttle_2_set_spin_ -> value();
+#endif
+    
 
     pid_id_set_ = pid_id_btn_group_ -> checkedId();
 
@@ -907,11 +1106,16 @@ void FMAVStatusPanel::getParamValues(){
 
 void FMAVStatusPanel::setPanelValues(){
 
+#ifdef TWO_WING
     mid_servo_set_spin_ -> setValue(mid_servo_pwm_set_);
+    climb_set_spin_ -> setValue(climb_pwm_set_);
+#endif
     left_servo_set_spin_ -> setValue(left_servo_pwm_set_);
     right_servo_set_spin_ -> setValue(right_servo_pwm_set_);
     throttle_set_spin_ -> setValue(throttle_pwm_set_);
-    climb_set_spin_ -> setValue(climb_pwm_set_);
+#ifdef FOUR_WING
+    throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+#endif
 
     switch(pid_id_set_){
         case(0):
@@ -966,7 +1170,7 @@ void FMAVStatusPanel::enableThrottle(){
     if(is_throttle_enabled_){
 	    is_throttle_enabled_ = false;
         count = 0;
-        while(cur_throttle_pwm_ != 0){
+        do{
             if(count >= 100){
                 is_throttle_enabled_ = true;
                 QMessageBox::critical(this, "错误", "发送超时");
@@ -976,7 +1180,7 @@ void FMAVStatusPanel::enableThrottle(){
             ros::spinOnce();
             r.sleep();
             count ++;
-        }
+        }while(cur_throttle_pwm_ != 0);
         throttle_enable_ -> setText("启动");
     }
     else{
@@ -986,19 +1190,20 @@ void FMAVStatusPanel::enableThrottle(){
         // }
 
         is_throttle_enabled_ = true;
-        count = 0;
-        do {
-            if(count >= 100){
-                is_throttle_enabled_ = false;
-                QMessageBox::critical(this, "错误", "发送超时");
-                return;
-            }
-            uploadConfig();
-            ros::spinOnce();
-            r.sleep();
-            count ++;
-        } while(cur_throttle_pwm_ != throttle_pwm_set_);
-	    
+        // count = 0;
+        // do {
+        //     if(count >= 100){
+        //         is_throttle_enabled_ = false;
+        //         QMessageBox::critical(this, "错误", "发送超时");
+        //         return;
+        //     }
+        //     uploadConfig();
+        //     ros::spinOnce();
+        //     r.sleep();
+        //     count ++;
+        // } while(cur_throttle_pwm_ != throttle_pwm_set_);
+        uploadConfig();
+
         throttle_enable_ -> setText("急停");
     }
 
@@ -1008,6 +1213,55 @@ void FMAVStatusPanel::enableThrottle(){
         joystick_send_timer_ -> stop();
     
 }
+
+#ifdef FOUR_WING
+void FMAVStatusPanel::enableThrottle2(){
+
+    ros::Rate r(10);
+    uint count;
+    getParamValues();
+
+    if(is_throttle_2_enabled_){
+	    is_throttle_2_enabled_ = false;
+        count = 0;
+        do{
+            if(count >= 100){
+                is_throttle_2_enabled_ = true;
+                QMessageBox::critical(this, "错误", "发送超时");
+                return;
+            }
+            uploadConfig();
+            ros::spinOnce();
+            r.sleep();
+            count ++;
+        }while(cur_throttle_2_pwm_ != 0);
+        throttle_2_enable_ -> setText("启动");
+    }
+    else{
+        // if(throttle_pwm_set_ == 0){
+        //     QMessageBox::warning(this, "警告", "当前设置油门量为0");
+        //     return;
+        // }
+
+        is_throttle_2_enabled_ = true;
+        // count = 0;
+        // do {
+        //     if(count >= 100){
+        //         is_throttle_2_enabled_ = false;
+        //         QMessageBox::critical(this, "错误", "发送超时");
+        //         return;
+        //     }
+        //     uploadConfig();
+        //     ros::spinOnce();
+        //     r.sleep();
+        //     count ++;
+        // } while(cur_throttle_2_pwm_ != throttle_2_pwm_set_);
+	    uploadConfig();
+        throttle_2_enable_ -> setText("急停");
+    }
+    
+}
+#endif
 
 void FMAVStatusPanel::uploadJoystick(){
     if(is_throttle_enabled_)
@@ -1052,6 +1306,9 @@ void FMAVStatusPanel::save( rviz::Config config ) const
     config.mapSetValue("LeftServoPWMSet", left_servo_pwm_set_);
     config.mapSetValue("RightServoPWMSet", right_servo_pwm_set_);
     config.mapSetValue("ThrottleServoPWMSet", throttle_pwm_set_);
+#ifdef FOUR_WING
+    config.mapSetValue("Throttle2ServoPWMSet", throttle_2_pwm_set_);
+#endif
     config.mapSetValue("ClimbServoPWMSet", climb_pwm_set_);
 
     config.mapSetValue("PIDExtRollSet0", pid_ext_set_[2][0]);
@@ -1102,6 +1359,9 @@ void FMAVStatusPanel::load( const rviz::Config& config )
     config.mapGetValue("LeftServoPWMSet", &v_tmp); left_servo_pwm_set_ = v_tmp.toUInt();
     config.mapGetValue("RightServoPWMSet", &v_tmp); right_servo_pwm_set_ = v_tmp.toUInt();
     config.mapGetValue("ThrottleServoPWMSet", &v_tmp); throttle_pwm_set_ = v_tmp.toUInt();
+#ifdef FOUR_WING
+    config.mapGetValue("Throttle2ServoPWMSet", &v_tmp); throttle_2_pwm_set_ = v_tmp.toUInt();
+#endif
     config.mapGetValue("ClimbServoPWMSet", &v_tmp); climb_pwm_set_ = v_tmp.toUInt();
 
     config.mapGetValue("PIDExtRollSet0", &v_tmp); pid_ext_set_[2][0] = v_tmp.toFloat();

@@ -8,6 +8,25 @@ project(rviz_teleop_commander)
 
 add_compile_options(-std=c++11)
 
+if(BODY_FRAME STREQUAL 2WING)
+  message(INFO "
+    Body frame: two wing.
+  ")
+  add_definitions(-DTWO_WING)
+else()
+  if(BODY_FRAME STREQUAL 4WING)
+    add_definitions(-DFOUR_WING)
+    message(INFO "
+    Body frame: four wing.
+    ")
+  else()
+    message(FATAL_ERROR "
+    Please specify the body frame using
+      -DBODY_FRAME=2WING or 4WING
+    ")
+  endif()
+endif()
+
 find_package(catkin REQUIRED COMPONENTS 
  std_msgs
  geometry_msgs
@@ -59,6 +78,11 @@ qt5_wrap_cpp(
 add_executable(vicon_mav_data_save src/vicon_mav_data_save.cpp)
 target_link_libraries(vicon_mav_data_save
   ${catkin_LIBRARIES}
+)
+add_dependencies(
+  vicon_mav_data_save
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
 )
 ## add_dependencies(vicon_mav_data_save ${PROJECT_NAME}_generate_messages_cpp)
 

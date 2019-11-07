@@ -9,7 +9,8 @@ nav_msgs/Odometry odom
 uint8 mid_servo_pwm
 uint8 left_servo_pwm
 uint8 right_servo_pwm
-uint8 throttle_pwm
+uint16 left_throttle_pwm
+uint16 right_throttle_pwm
 uint8 climb_pwm
 
 # system status
