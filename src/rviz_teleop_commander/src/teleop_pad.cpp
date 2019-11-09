@@ -745,9 +745,13 @@ void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
     }
 
     // uint8_t old_throttle = throttle_pwm_set_;
+#ifdef TWO_WING
     throttle_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * THROTTLE_MAX) : 0;
     throttle_set_spin_ -> setValue(throttle_pwm_set_);
+#endif
 #ifdef FOUR_WING
+    throttle_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * THROTTLE_MAX - 100) : 0;
+    throttle_set_spin_ -> setValue(throttle_pwm_set_);
     throttle_2_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * (THROTTLE_MAX - 100)) : 0;
     throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
 #endif
@@ -854,16 +858,28 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
 
         case(flight_mode):
             msg.mode_id = flight_mode;
-            msg.data.reserve(8);
+            msg.data.reserve(9);
             msg.data.push_back(flight_mode);
             msg.data.push_back(0);
             msg.data.push_back(0);
             msg.data.push_back(0);
             msg.data.push_back(0);
+#ifdef TWO_WING
             if(is_throttle_enabled_)
                 msg.data.push_back(throttle_pwm_set_);
             else
                 msg.data.push_back(0);
+#endif
+#ifdef FOUR_WING
+            if(is_throttle_enabled_){
+                msg.data.push_back(throttle_pwm_set_);
+                msg.data.push_back(throttle_pwm_set_ >> 8);
+            }
+            else{
+                msg.data.push_back(0);
+                msg.data.push_back(0);
+            }
+#endif
             
             msg.data.push_back(0x0d);
             msg.data.push_back(0x0a);
