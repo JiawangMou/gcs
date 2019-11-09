@@ -460,6 +460,10 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 
     pid_tuning_layout_ -> addLayout(pid_id_layout_);
 
+    //飞行模式摇杆
+    flight_control_joysitck_ = new JoystickWidget();
+    flight_control_joysitck_ -> setFixedHeight(200);
+
 
     QFrame* spline_1 = new QFrame();
     spline_1->setFrameShape(QFrame::HLine);
@@ -509,6 +513,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #ifdef TWO_WING
     layout -> addLayout(climb_set_layout_);
 #endif
+    layout -> addWidget(flight_control_joysitck_);
     layout -> addLayout(pid_tuning_layout_);
     layout -> addStretch();
     setLayout( layout );
@@ -1002,7 +1007,6 @@ void FMAVStatusPanel::checkConnection(){
 
 void FMAVStatusPanel::setParamMode(int index){
 
-
     boxLayoutVisible(right_servo_set_layout_, false);
     boxLayoutVisible(left_servo_set_layout_, false);
     boxLayoutVisible(throttle_set_layout_, false);
@@ -1047,6 +1051,8 @@ void FMAVStatusPanel::setParamMode(int index){
     }
 #endif
 
+    flight_control_joysitck_ -> setVisible(false);
+
     switch(index){
         case(0):    //FAULT_MODE
             param_mode_ = fault_mode;
@@ -1083,6 +1089,7 @@ void FMAVStatusPanel::setParamMode(int index){
             param_mode_ = flight_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
+            flight_control_joysitck_ -> setVisible(true);
 #ifdef FOUR_WING
             throttle_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
             throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX - 100);

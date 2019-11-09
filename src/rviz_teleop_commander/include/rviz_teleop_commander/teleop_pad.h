@@ -28,6 +28,7 @@
 
 #include <mav_comm_driver/MAVStatus.h>
 #include <mav_comm_driver/ModeConfig.h>
+#include <rviz_teleop_commander/joystick_widget.h>
 #endif
 
 #ifdef TWO_WING
@@ -261,6 +262,9 @@ protected:
     QPushButton* pid_id_roll_;
     QPushButton* pid_id_pitch_;
     QPushButton* pid_id_yaw_;
+
+    //飞行模式摇杆
+    JoystickWidget* flight_control_joysitck_;
 
 
     //PID 参数存储变量

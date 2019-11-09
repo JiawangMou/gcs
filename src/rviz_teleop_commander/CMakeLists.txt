@@ -72,6 +72,7 @@ add_definitions(-DQT_NO_KEYWORDS)
 qt5_wrap_cpp(
   MOC_FILES
   include/rviz_teleop_commander/teleop_pad.h
+  include/rviz_teleop_commander/joystick_widget.h
 )
 
 
@@ -89,7 +90,8 @@ add_dependencies(
 ## Here we specify the list of source files, including the output of
 ## the previous command which is stored in ``${MOC_FILES}``.
 set(SOURCE_FILES
-  src/teleop_pad.cpp 
+  src/teleop_pad.cpp
+  src/joystick_widget.cpp
   ${MOC_FILES}
 )
 
