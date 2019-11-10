@@ -85,6 +85,7 @@ protected Q_SLOTS:
     void enableThrottle2();
 #endif
     void uploadJoystick();
+    void joystickMove(float x, float y);
 
 protected:
         void joystickReceive(const sensor_msgs::Joy::ConstPtr&);

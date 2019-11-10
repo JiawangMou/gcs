@@ -539,6 +539,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #ifdef FOUR_WING
     connect( throttle_2_enable_, SIGNAL(clicked()), this, SLOT(enableThrottle2()));
 #endif
+    connect( flight_control_joysitck_, SIGNAL(JoystickValueChanged(float,float)), this, SLOT(joystickMove(float, float)) );
+    
 
     //T=500ms
     connection_check_timer -> start( 500 );
@@ -1299,6 +1301,12 @@ void FMAVStatusPanel::enableThrottle2(){
     
 }
 #endif
+
+void FMAVStatusPanel::joystickMove(float x, float y){
+
+    ROS_INFO("I hear:%f,%f",x,y);
+
+}
 
 void FMAVStatusPanel::uploadJoystick(){
     if(is_throttle_enabled_)
