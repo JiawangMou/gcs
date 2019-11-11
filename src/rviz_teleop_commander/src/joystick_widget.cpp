@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <ros/ros.h>
+#include <math.h>
 #include "rviz_teleop_commander/joystick_widget.h"
 
 
@@ -8,41 +9,131 @@ JoystickWidget::JoystickWidget(QWidget* parent):
     QWidget(parent){
 
     m_isPressedInside = false;
+    m_pushRadius = 20;
+    m_padRadius = 50;
+    m_joystickPos.setX(rect().center().x());
+    m_joystickPos.setY(rect().center().y());
 
 }
+
+void JoystickWidget::resizeEvent(QResizeEvent *e){
+
+    if(!m_isPressedInside){
+        m_joystickPos.setX(rect().center().x());
+        m_joystickPos.setY(rect().center().y());
+    }
+}
+
 
 void JoystickWidget::paintEvent(QPaintEvent *e){
     
     QPainter painter(this);
+
+    painter.save();
+    //draw move pad
+    painter.translate(rect().center());
+    QRadialGradient move_pad_brush(0, 0, m_padRadius * 1.1 ,0, 0);
+    move_pad_brush.setColorAt(1 / 1.1, QColor(100,100,100));
+    move_pad_brush.setColorAt(1, QColor(255, 255, 255, 0));
+    QPainterPath big_circle, small_circle;
+    big_circle.addEllipse(QPoint(0, 0), m_padRadius * 1.1, m_padRadius * 1.1);
+    small_circle.addEllipse(QPoint(0, 0), m_padRadius, m_padRadius);
+    QPainterPath path = big_circle - small_circle;
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(move_pad_brush);
+    painter.drawPath(path);
+    painter.restore();
+
+    painter.save();
+    QFont font;
+    font.setPixelSize(15);
+    painter.setPen(Qt::black);
+    painter.setFont(font);
+    QFontMetrics pfm = painter.fontMetrics();
+    painter.drawText(QPoint(rect().center().x() - pfm.width("- 前进 -") / 2,
+                            rect().center().y() - m_padRadius * 1.2 ), "- 前进 -");
+    painter.drawText(QPoint(rect().center().x() - pfm.width("- 后退 -") / 2,
+                            rect().center().y() + m_padRadius * 1.2 + pfm.height()), "- 后退 -");
+    painter.drawText(QPoint(rect().center().x() - pfm.width("- 左移 -") - m_padRadius * 1.2,
+                            rect().center().y() + pfm.height() / 2), "- 左移 -");
+    painter.drawText(QPoint(rect().center().x() + m_padRadius * 1.2,
+                            rect().center().y() + pfm.height() / 2), "- 右移 -");
+    painter.restore();
+
     painter.save();
 
-    QBrush push_ball_brush;
-    QRadialGradient push_ball_brush_color;
-    push_ball_brush_color.setColorAt(0,QColor(0,0,0));
-    push_ball_brush_color.setColorAt(1,QColor(255,255,255));
-    push_ball_brush_color.setRadius(20);
-    push_ball_brush_color.setCoordinateMode(QGradient::CoordinateMode::StretchToDeviceMode);
-    push_ball_brush_color.setCenter(QPoint(0,0));
-
+    //draw push button
+    QLinearGradient push_btn_brush;
+    if(m_isPressedInside){
+        push_btn_brush.setColorAt(0, QColor(50,50,50));
+        push_btn_brush.setColorAt(1, QColor(150,150,150));
+    }
+    else{
+        push_btn_brush.setColorAt(1, QColor(50,50,50));
+        push_btn_brush.setColorAt(0, QColor(150,150,150));
+    }
+    push_btn_brush.setStart(m_joystickPos.x(), m_joystickPos.y() - m_pushRadius);
+    push_btn_brush.setFinalStop(m_joystickPos.x(), m_joystickPos.y() + m_pushRadius);
+    push_btn_brush.setCoordinateMode(QGradient::CoordinateMode::LogicalMode);
     painter.setPen(Qt::NoPen);
-    QColor bgColor(50,50,50);
-    painter.setBrush(push_ball_brush_color);
-    painter.drawEllipse(this->rect().center(),20,20);
+    painter.setBrush(push_btn_brush);
+    painter.drawEllipse(m_joystickPos, m_pushRadius, m_pushRadius);
+
     painter.restore();
 
 }
 
 void JoystickWidget::mouseMoveEvent(QMouseEvent *e){
 
-    ROS_INFO("x:%d,y:%d",e->x(),e->y());
-    Q_EMIT JoystickValueChanged(e->x(),e->y());
-    update();
+    if(m_isPressedInside){
+        
+        int joy_value_x = e -> x() - m_mousePosWhenPressed.x(),
+            joy_value_y = e -> y() - m_mousePosWhenPressed.y();
+        
+        if(joy_value_x * joy_value_x + joy_value_y * joy_value_y >= m_padRadius * m_padRadius){
+            double factor = sqrt(m_padRadius * m_padRadius * 1.0 / (joy_value_x * joy_value_x + joy_value_y * joy_value_y));
+            joy_value_x *= factor;
+            joy_value_y *= factor;
+        }
+
+        m_joystickPos.setX(rect().center().x() + joy_value_x);
+        m_joystickPos.setY(rect().center().y() + joy_value_y);
+        Q_EMIT JoystickValueChanged(- joy_value_x * 1.0 / m_padRadius, joy_value_y * 1.0 / m_padRadius);
+        update();
+    }
+
 }
 
 void JoystickWidget::mousePressEvent(QMouseEvent *e){
-    ROS_INFO("press:x:%d,y:%d",e->x(),e->y());
+    
+    m_mousePosWhenPressed.setX(e -> x());
+    m_mousePosWhenPressed.setY(e -> y());
+    int dx = e -> x() - m_joystickPos.x(), dy = e -> y() - m_joystickPos.y();
+    if(dx * dx + dy * dy <= m_pushRadius * m_pushRadius){
+        m_isPressedInside = true;
+        update();
+    }
+    
 }
 
 void JoystickWidget::mouseReleaseEvent(QMouseEvent *e){
-    ROS_INFO("release:x:%d,y:%d",e->x(),e->y());
+
+    if(m_isPressedInside){
+        Q_EMIT JoystickValueChanged(0.0, 0.0);
+        m_isPressedInside = false;
+        m_joystickPos.setX(rect().center().x());
+        m_joystickPos.setY(rect().center().y());
+        update();
+    }
+
+}
+
+void JoystickWidget::setJoystickPos(float x, float y){
+
+    if(x * x + y * y > 1 || m_isPressedInside)
+        return;
+
+    m_joystickPos.setX(rect().center().x() - x * m_padRadius);
+    m_joystickPos.setY(rect().center().y() + y * m_padRadius);
+    update();
 }

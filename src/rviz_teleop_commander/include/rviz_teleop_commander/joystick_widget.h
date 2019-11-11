@@ -21,6 +21,9 @@ class JoystickWidget: public QWidget
         void mouseMoveEvent(QMouseEvent *e);
         void mousePressEvent(QMouseEvent *e);
         void mouseReleaseEvent(QMouseEvent *e);
+        void resizeEvent(QResizeEvent *e);
+
+        void setJoystickPos(float x, float y);
 
     public:
         
@@ -29,6 +32,8 @@ class JoystickWidget: public QWidget
         QPoint m_mousePosWhenPressed;
         QPoint m_joystickPos;
         bool m_isPressedInside;
+        int m_pushRadius;
+        int m_padRadius;
 
     Q_SIGNALS:
         void JoystickValueChanged(float,float);
