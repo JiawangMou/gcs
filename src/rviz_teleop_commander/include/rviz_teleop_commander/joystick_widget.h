@@ -34,6 +34,7 @@ class JoystickWidget: public QWidget
         bool m_isPressedInside;
         int m_pushRadius;
         int m_padRadius;
+        float m_joystickValueX, m_joystickValueY;
 
     Q_SIGNALS:
         void JoystickValueChanged(float,float);

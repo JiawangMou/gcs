@@ -751,6 +751,8 @@ void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
 #endif
     }
 
+    flight_control_joysitck_ -> setJoystickPos(msg -> axes[0], msg -> axes[1]);
+
     // uint8_t old_throttle = throttle_pwm_set_;
 #ifdef TWO_WING
     throttle_pwm_set_ = msg -> axes[4] > 0.0 ? (int)(msg -> axes[4] * THROTTLE_MAX) : 0;
