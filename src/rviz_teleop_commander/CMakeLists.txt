@@ -74,16 +74,6 @@ qt5_wrap_cpp(
   include/rviz_teleop_commander/teleop_pad.h
 )
 
-
-add_executable(vicon_mav_data_save src/vicon_mav_data_save.cpp)
-target_link_libraries(vicon_mav_data_save
-  ${catkin_LIBRARIES}
-)
-add_dependencies(
-  vicon_mav_data_save
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
 ## add_dependencies(vicon_mav_data_save ${PROJECT_NAME}_generate_messages_cpp)
 
 ## Here we specify the list of source files, including the output of
@@ -92,7 +82,6 @@ set(SOURCE_FILES
   src/teleop_pad.cpp 
   ${MOC_FILES}
 )
-
 
 ## An rviz plugin is just a shared library, so here we declare the
 ## library to be called ``${PROJECT_NAME}`` (which is
@@ -112,6 +101,27 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## particular OS.
 target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 ## END_TUTORIAL
+
+add_executable(vicon_mav_data_save src/vicon_mav_data_save.cpp)
+target_link_libraries(vicon_mav_data_save
+  ${catkin_LIBRARIES}
+)
+add_dependencies(
+  vicon_mav_data_save
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+
+add_executable(vicon_transfer src/vicon_transfer.cpp)
+target_link_libraries(vicon_transfer
+  ${catkin_LIBRARIES}
+)
+add_dependencies(
+  vicon_transfer
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
 
 
 ## Install rules

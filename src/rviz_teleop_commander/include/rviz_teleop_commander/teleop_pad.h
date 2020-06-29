@@ -12,6 +12,7 @@
 #include <sensor_msgs/Joy.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -46,6 +47,7 @@ const uint8_t start_mode = 0x08;
 const uint8_t manual_mode = 0x10;
 const uint8_t flight_mode = 0x18;
 const uint8_t tuning_mode = 0x38;
+const uint8_t vicon_test_mode = 0x30;
 
 const uint8_t servo_pwm_max = 210;
 const uint8_t servo_pwm_min = 90;
@@ -84,12 +86,16 @@ protected Q_SLOTS:
     void enableThrottle2();
 #endif
     void uploadJoystick();
+    void refreshViconTopicList();
+    void viconStartEnd();
 
 protected:
-        void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
-        void boxLayoutVisible(QBoxLayout *, bool);
-        void getParamValues();
-        void setPanelValues();
+    void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
+    void boxLayoutVisible(QBoxLayout *, bool);
+    void getParamValues();
+    void setPanelValues();
+    std::string getCommandOutput(const char* cmd);
+
 // 内部变量.
 protected:
 
@@ -262,6 +268,11 @@ protected:
     QPushButton* pid_id_pitch_;
     QPushButton* pid_id_yaw_;
 
+    //Vicon测试模式控件
+    QVBoxLayout* vicon_test_layout_;
+    QPushButton* vicon_topic_refresh_btn_;
+    QComboBox* vicon_topic_combo_;
+    QPushButton* vicon_start_btn_;
 
     //PID 参数存储变量
     uint8_t pid_freq_;
@@ -289,6 +300,7 @@ protected:
     // FILE* joystick_;
 
     bool is_connected;
+    bool is_vicon_started;
 
     uint mav_down_msg_cnt_;
     uint mav_down_msg_cnt_prev_;

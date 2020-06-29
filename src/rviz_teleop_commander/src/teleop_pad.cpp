@@ -53,6 +53,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #ifdef FOUR_WING
     is_throttle_2_enabled_ = 0;
 #endif
+    is_vicon_started = false;
 
     // 标志logo
     std::string logo_img_path;
@@ -242,6 +243,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mode_sel_combo_ -> addItem("手动模式", 2);
     mode_sel_combo_ -> addItem("飞行模式", 3);
     mode_sel_combo_ -> addItem("调参模式", 4);
+    mode_sel_combo_ -> addItem("Vicon测试模式", 5);
     mode_sel_combo_ -> setCurrentIndex(0);
 
     //PWM调节栏(开始模式，手动模式)
@@ -460,6 +462,14 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 
     pid_tuning_layout_ -> addLayout(pid_id_layout_);
 
+    //Vicon Test Layout
+    vicon_test_layout_ = new QVBoxLayout();
+    vicon_topic_refresh_btn_ = new QPushButton("刷新Vicon话题");
+    vicon_test_layout_ -> addWidget(vicon_topic_refresh_btn_);
+    vicon_topic_combo_ = new QComboBox();
+    vicon_test_layout_ -> addWidget(vicon_topic_combo_);
+    vicon_start_btn_ = new QPushButton("开始Vicon转发");
+    vicon_test_layout_ -> addWidget(vicon_start_btn_);
 
     QFrame* spline_1 = new QFrame();
     spline_1->setFrameShape(QFrame::HLine);
@@ -510,6 +520,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     layout -> addLayout(climb_set_layout_);
 #endif
     layout -> addLayout(pid_tuning_layout_);
+    layout -> addLayout(vicon_test_layout_);
     layout -> addStretch();
     setLayout( layout );
 
@@ -534,6 +545,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #ifdef FOUR_WING
     connect( throttle_2_enable_, SIGNAL(clicked()), this, SLOT(enableThrottle2()));
 #endif
+    connect( vicon_topic_refresh_btn_,  SIGNAL( clicked() ), this, SLOT( refreshViconTopicList() ));
+    connect( vicon_start_btn_,  SIGNAL( clicked() ), this, SLOT( viconStartEnd() ));
 
     //T=500ms
     connection_check_timer -> start( 500 );
@@ -1014,6 +1027,10 @@ void FMAVStatusPanel::setParamMode(int index){
     boxLayoutVisible(climb_set_layout_, false);
 #endif
     boxLayoutVisible(pid_tuning_layout_, false);
+    boxLayoutVisible(vicon_test_layout_, false);
+    // if(param_mode_ == vicon_test_mode)
+        // system("rosnode kill /vicon_bridge");
+    
     joystick_sub_.shutdown();
     if(joystick_send_timer_ -> isActive())
         joystick_send_timer_ -> stop();
@@ -1097,6 +1114,11 @@ void FMAVStatusPanel::setParamMode(int index){
             throttle_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
             throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
 #endif
+            break;
+        
+        case(5):    //VICON TEST MODE
+            param_mode_ = vicon_test_mode;
+            boxLayoutVisible(vicon_test_layout_, true);
             break;
     }
 }
@@ -1327,6 +1349,52 @@ void FMAVStatusPanel::boxLayoutVisible(QBoxLayout *boxLayout, bool bVisible)
 	
 }
 
+void FMAVStatusPanel::refreshViconTopicList(){
+
+    std::stringstream ss(getCommandOutput("rostopic list"));
+    std::string topic;
+    vicon_topic_combo_ -> clear();
+    while(ss >> topic){
+        if(topic.find("/mav") != topic.npos){
+            vicon_topic_combo_ -> addItem(topic.c_str());
+        }
+    }
+    return;
+}
+
+// 读取命令行输出
+std::string FMAVStatusPanel::getCommandOutput(const char* cmd){
+
+    char buffer[1024];
+    FILE *fp;
+    std::string res;
+    if((fp = popen(cmd, "r")) != NULL)
+    {
+        while(fgets(buffer, 1024, fp) != NULL)
+           res.append(buffer);
+        pclose(fp);
+    }
+    return res;
+}
+
+void FMAVStatusPanel::viconStartEnd(){
+    if(!is_vicon_started){
+        std::string topic = vicon_topic_combo_ -> currentText().toStdString();
+        if(!topic.empty()){
+            topic = "rosrun rviz_teleop_commander vicon_transfer " + topic + "&";
+            system(topic.c_str());
+
+            vicon_start_btn_ -> setText("结束Vicon转发");
+            is_vicon_started = true;
+        }
+        else QMessageBox::critical(this, "错误", "无效话题名");
+    }
+    else{
+        system("rosnode kill /vicon_transfer");
+        vicon_start_btn_ -> setText("开始Vicon转发");
+        is_vicon_started = false;
+    }
+}
 
 // 重载父类的功能
 void FMAVStatusPanel::save( rviz::Config config ) const
