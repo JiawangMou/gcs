@@ -470,6 +470,11 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     vicon_test_layout_ -> addWidget(vicon_topic_combo_);
     vicon_start_btn_ = new QPushButton("开始Vicon转发");
     vicon_test_layout_ -> addWidget(vicon_start_btn_);
+    
+    //飞行模式摇杆
+    flight_control_joysitck_ = new JoystickWidget();
+    flight_control_joysitck_ -> setFixedHeight(200);
+
 
     QFrame* spline_1 = new QFrame();
     spline_1->setFrameShape(QFrame::HLine);
@@ -519,6 +524,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #ifdef TWO_WING
     layout -> addLayout(climb_set_layout_);
 #endif
+    layout -> addWidget(flight_control_joysitck_);
     layout -> addLayout(pid_tuning_layout_);
     layout -> addLayout(vicon_test_layout_);
     layout -> addStretch();
@@ -547,6 +553,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #endif
     connect( vicon_topic_refresh_btn_,  SIGNAL( clicked() ), this, SLOT( refreshViconTopicList() ));
     connect( vicon_start_btn_,  SIGNAL( clicked() ), this, SLOT( viconStartEnd() ));
+    connect( flight_control_joysitck_, SIGNAL(JoystickValueChanged(float,float)), this, SLOT(joystickMove(float, float)) );
+    
 
     //T=500ms
     connection_check_timer -> start( 500 );
@@ -756,6 +764,8 @@ void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
         enableThrottle2();
 #endif
     }
+
+    flight_control_joysitck_ -> setJoystickPos(msg -> axes[0], msg -> axes[1]);
 
     // uint8_t old_throttle = throttle_pwm_set_;
 #ifdef TWO_WING
@@ -1015,7 +1025,6 @@ void FMAVStatusPanel::checkConnection(){
 
 void FMAVStatusPanel::setParamMode(int index){
 
-
     boxLayoutVisible(right_servo_set_layout_, false);
     boxLayoutVisible(left_servo_set_layout_, false);
     boxLayoutVisible(throttle_set_layout_, false);
@@ -1064,6 +1073,8 @@ void FMAVStatusPanel::setParamMode(int index){
     }
 #endif
 
+    flight_control_joysitck_ -> setVisible(false);
+
     switch(index){
         case(0):    //FAULT_MODE
             param_mode_ = fault_mode;
@@ -1100,6 +1111,7 @@ void FMAVStatusPanel::setParamMode(int index){
             param_mode_ = flight_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
+            flight_control_joysitck_ -> setVisible(true);
 #ifdef FOUR_WING
             throttle_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
             throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
@@ -1314,6 +1326,12 @@ void FMAVStatusPanel::enableThrottle2(){
     
 }
 #endif
+
+void FMAVStatusPanel::joystickMove(float x, float y){
+
+    ROS_INFO("I hear:%f,%f",x,y);
+
+}
 
 void FMAVStatusPanel::uploadJoystick(){
     if(is_throttle_enabled_)

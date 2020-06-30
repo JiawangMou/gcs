@@ -94,6 +94,7 @@ add_message_files(
   FILES
   MAVStatus.msg
   ModeConfig.msg
+  MFPUnified.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -179,6 +180,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node src/mav_serial_node.cpp)
+add_executable(${PROJECT_NAME}_mfp_node src/mav_mfp_serial_node.cpp)
 add_executable(imu_tester src/imu_tester.cpp)
 add_executable(mytest_1 src/talker.cpp)
 add_executable(imu_origin_recorder src/imu_origin_recorder.cpp)
@@ -192,6 +194,7 @@ add_executable(imu_origin_recorder src/imu_origin_recorder.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_mfp_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(imu_tester ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(imu_origin_recorder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
@@ -200,6 +203,9 @@ target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
 
+target_link_libraries(${PROJECT_NAME}_mfp_node
+  ${catkin_LIBRARIES}
+)
 
 target_link_libraries(mytest_1
   ${catkin_LIBRARIES}
