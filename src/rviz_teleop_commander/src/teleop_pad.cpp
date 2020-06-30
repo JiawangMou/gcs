@@ -1355,7 +1355,7 @@ void FMAVStatusPanel::refreshViconTopicList(){
     std::string topic;
     vicon_topic_combo_ -> clear();
     while(ss >> topic){
-        if(topic.find("/mav") != topic.npos){
+        if(topic.find("/vicon") != topic.npos){
             vicon_topic_combo_ -> addItem(topic.c_str());
         }
     }
