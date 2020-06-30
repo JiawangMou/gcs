@@ -29,6 +29,7 @@
 
 #include <mav_comm_driver/MAVStatus.h>
 #include <mav_comm_driver/ModeConfig.h>
+#include <rviz_teleop_commander/joystick_widget.h>
 #endif
 
 #ifdef TWO_WING
@@ -88,6 +89,7 @@ protected Q_SLOTS:
     void uploadJoystick();
     void refreshViconTopicList();
     void viconStartEnd();
+    void joystickMove(float x, float y);
 
 protected:
     void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
@@ -273,6 +275,10 @@ protected:
     QPushButton* vicon_topic_refresh_btn_;
     QComboBox* vicon_topic_combo_;
     QPushButton* vicon_start_btn_;
+    
+    //飞行模式摇杆
+    JoystickWidget* flight_control_joysitck_;
+
 
     //PID 参数存储变量
     uint8_t pid_freq_;

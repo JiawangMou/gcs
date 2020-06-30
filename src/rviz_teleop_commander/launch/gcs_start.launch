@@ -7,7 +7,9 @@
   <param name="/mav_driver/port" type="string" value="/dev/ttyUSB0"/>
   <param name="/mav_driver/baudrate" type="int" value="460800" />
 
-  <node name="joy_node" pkg="joy" type="joy_node" output="screen"/>
+  <node name="joy_node" pkg="joy" type="joy_node" output="screen">
+    <param name="deadzone" type="double" value="0.0" />
+  </node>
   
   <node name="mav_comm_driver_node" pkg="mav_comm_driver" type="mav_comm_driver_node" output="screen"/>
   
