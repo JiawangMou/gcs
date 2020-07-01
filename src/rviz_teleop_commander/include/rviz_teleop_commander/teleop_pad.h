@@ -10,6 +10,7 @@
 #include <std_msgs/String.h>
 #include <tf/transform_broadcaster.h>
 #include <sensor_msgs/Joy.h>
+#include <geometry_msgs/TransformStamped.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,6 +97,7 @@ protected Q_SLOTS:
 
 protected:
     void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
+    void viconReceive(const geometry_msgs::TransformStamped::ConstPtr&);
     void boxLayoutVisible(QBoxLayout *, bool);
     void getParamValues();
     void setPanelValues();
@@ -301,6 +303,7 @@ protected:
     ros::Publisher mav_config_pub_;
     ros::Subscriber mav_down_sub_;
     ros::Subscriber joystick_sub_;
+    ros::Subscriber vicon_sub_;
     tf::TransformBroadcaster tf_pub_;
 
     QTimer* joystick_send_timer_;

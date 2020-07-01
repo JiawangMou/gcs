@@ -615,16 +615,17 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             sprintf(numstr, "%.2f", cur_yaw_);
             yaw_label_ -> setText(numstr);
 
-            //send tf transform
-            tf::Transform transform;
-            tf::Quaternion q;
-            q.setRPY(cur_roll_ * DEG2RAD, cur_pitch_ * DEG2RAD, cur_yaw_ * DEG2RAD);
-            transform.setRotation(q);
-            transform.setOrigin(tf::Vector3(0,
-                                            0,
-                                            0));
-            tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
-
+            if(!is_vicon_started){
+                //send tf transform
+                tf::Transform transform;
+                tf::Quaternion q;
+                q.setRPY(cur_roll_ * DEG2RAD, cur_pitch_ * DEG2RAD, cur_yaw_ * DEG2RAD);
+                transform.setRotation(q);
+                transform.setOrigin(tf::Vector3(0,
+                                                0,
+                                                0));
+                tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
+            }
         break;
     }
 	
@@ -1437,6 +1438,8 @@ void FMAVStatusPanel::viconStartEnd(){
     if(!is_vicon_started){
         std::string topic = vicon_topic_combo_ -> currentText().toStdString();
         if(!topic.empty()){
+            vicon_sub_ = nh_.subscribe(topic, 1000, &FMAVStatusPanel::viconReceive, this);
+
             topic = "rosrun rviz_teleop_commander vicon_transfer " + topic + "&";
             system(topic.c_str());
 
@@ -1446,10 +1449,23 @@ void FMAVStatusPanel::viconStartEnd(){
         else QMessageBox::critical(this, "错误", "无效话题名");
     }
     else{
+        vicon_sub_.shutdown();
+
         system("rosnode kill /vicon_transfer");
         vicon_start_btn_ -> setText("开始Vicon转发");
         is_vicon_started = false;
     }
+}
+
+void FMAVStatusPanel::viconReceive(const geometry_msgs::TransformStamped::ConstPtr& msg){
+    
+    //send tf transform
+    geometry_msgs::TransformStamped new_tf_msg;
+    new_tf_msg = *msg;
+    new_tf_msg.header.frame_id = "map";
+    new_tf_msg.child_frame_id = "base_link";
+    tf_pub_.sendTransform(new_tf_msg);
+    return;
 }
 
 // 重载父类的功能
