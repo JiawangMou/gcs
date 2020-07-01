@@ -1,7 +1,7 @@
 Header header
-uint8 frame_id
+uint8 msg_id
 uint8 length
-uint8[] data    # must include id as header
+uint8[] data    # include id , length , data (not include the frame head AAAF/AAAA)
 
 # frame id presets
 uint8 UP_STATUS = 1 # 0x01

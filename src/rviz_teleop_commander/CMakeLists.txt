@@ -55,6 +55,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   include
+  extlib
   )
   
 link_directories(${catkin_LIBRARY_DIRS})
@@ -115,7 +116,11 @@ add_dependencies(
 )
 
 
-add_executable(vicon_transfer src/vicon_transfer.cpp)
+add_executable(vicon_transfer
+  src/vicon_transfer.cpp
+  extlib/attitude_pid.c
+  extlib/pid.c
+  )
 target_link_libraries(vicon_transfer
   ${catkin_LIBRARIES}
 )

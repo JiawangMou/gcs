@@ -10,6 +10,7 @@
 serial::Serial ros_ser;
 
 #define DEG2RAD (M_PI/180.0)
+static const uint8_t send_frame_head[] = {0xaa, 0xaf};
 
 using namespace std;
 
@@ -17,22 +18,28 @@ using namespace std;
 void send_config(const mav_comm_driver::MFPUnified::ConstPtr& msg){
 
     int i;
-
-    if(msg -> data.size() > 0){
-        ros_ser.write(msg->data);
-        ROS_WARN("%02x", msg ->data[0]);
-        for(i = 0 ;i < msg -> data.size(); i++){
-            printf("%02x ",msg -> data[i]);
-        }
-        printf("\n");
-        ROS_INFO_STREAM("Configuration Sent. Size:" << msg ->data.size());
+    uint8_t send_check_sum;
+    
+    if(msg -> data.size() != msg -> length + 2){
+        ROS_WARN("Wrong Msg Length. Ignored");
+        return;
     }
-    else
-    {
-        ROS_WARN("Mode ID is not attached to the message head! Ignored.");
-    }
-            
 
+    send_check_sum = 0;
+    for(i = 0 ;i < msg -> data.size(); i++){
+        send_check_sum += msg -> data[i];
+        // printf("%02x ",msg -> data[i]);
+    }
+    send_check_sum += 0x59;     //0xAA + 0xAF
+    // printf("%02x ",send_check_sum);
+    // printf("\n");
+
+    ros_ser.write(send_frame_head, 2);
+    ros_ser.write(msg -> data);
+    ros_ser.write(&send_check_sum, 1);
+
+    ROS_INFO_STREAM("Configuration Sent. Size:" << msg -> data.size() + 3);
+    return;
 }
 
 
@@ -41,7 +48,7 @@ int main(int argc, char** argv){
     ros::NodeHandle n;
 
     //接受并转发飞行器config
-    ros::Subscriber config_sub = n.subscribe("/mode_config", 10, send_config);
+    ros::Subscriber config_sub = n.subscribe("/mav_download", 10, send_config);
 
     //发布主题sensor
     ros::Publisher mav_data_pub = n.advertise<mav_comm_driver::MFPUnified>("/received_data", 10);
@@ -105,8 +112,9 @@ int main(int argc, char** argv){
                     ROS_WARN("Bad Check Sum. Dropped.");
                 }
                 else{
+                    serial_data.pop_back();
                     rec_msg.header.stamp = ros::Time::now();
-                    rec_msg.frame_id = serial_data[0];
+                    rec_msg.msg_id = serial_data[0];
                     rec_msg.length = serial_data[1];
                     rec_msg.data = serial_data;
                     mav_data_pub.publish(rec_msg);

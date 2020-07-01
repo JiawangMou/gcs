@@ -3,3 +3,4 @@
 /.vscode
 /src/CMakeLists.txt
 data/
+/src/vicon_bridge

@@ -572,12 +572,22 @@ FMAVStatusPanel::~FMAVStatusPanel(){
     //pclose(joystick_);
 }
 
-void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr& msg){
+void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPtr& msg){
 
     mav_down_msg_cnt_ ++;
     
+    QPalette palette;
+    char numstr[30];
+
     if(!is_connected){
         is_connected = true;
+
+        //设置连接图标
+        mode_label_ -> setText("连接正常");
+        palette.setColor(QPalette::Background, QColor(0, 255, 0));
+        mode_label_ -> setPalette(palette);
+        palette.setColor(QPalette::WindowText, QColor(Qt::white));
+        mode_label_ -> setPalette(palette);
     }
     
     if(!upload_to_mav_ -> isEnabled())
@@ -589,170 +599,198 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr
         throttle_2_enable_ -> setEnabled(true);
 #endif
     }
+
+    mode_id_ = msg -> msg_id;
+    switch(mode_id_){
+        case(mav_comm_driver::MFPUnified::UP_STATUS):
+            cur_roll_ = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
+            cur_pitch_ = - (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 100.0;
+            cur_yaw_ = - (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
+
+            // update display values
+            sprintf(numstr, "%.2f", cur_roll_);
+            roll_label_ -> setText(numstr);
+            sprintf(numstr, "%.2f", cur_pitch_);
+            pitch_label_ -> setText(numstr);
+            sprintf(numstr, "%.2f", cur_yaw_);
+            yaw_label_ -> setText(numstr);
+
+            //send tf transform
+            tf::Transform transform;
+            tf::Quaternion q;
+            q.setRPY(cur_roll_ * DEG2RAD, cur_pitch_ * DEG2RAD, cur_yaw_ * DEG2RAD);
+            transform.setRotation(q);
+            transform.setOrigin(tf::Vector3(0,
+                                            0,
+                                            0));
+            tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
+
+        break;
+    }
 	
 
-    mode_id_ = msg -> mode_id;
+//     mode_id_ = msg -> mode_id;
 
-    QPalette palette;
-    switch(mode_id_){
-        case(mav_comm_driver::MAVStatus::FAULT_MODE):
-            mode_label_ -> setText("故障模式");
-            palette.setColor(QPalette::Background, QColor(255, 0, 0));
-            mode_label_ -> setPalette(palette);
-            palette.setColor(QPalette::WindowText, QColor(Qt::white));
-            mode_label_ -> setPalette(palette);
-            break;
-        case(mav_comm_driver::MAVStatus::START_MODE):
-            mode_label_ -> setText("开始模式");
-            palette.setColor(QPalette::Background, QColor(0, 0, 255));
-            mode_label_ -> setPalette(palette);
-            palette.setColor(QPalette::WindowText, QColor(Qt::white));
-            mode_label_ -> setPalette(palette);
-            break;
-        case(mav_comm_driver::MAVStatus::MANUAL_MODE):
-            mode_label_ -> setText("手动模式");
-            palette.setColor(QPalette::Background, QColor(0, 100, 100));
-            mode_label_ -> setPalette(palette);
-            palette.setColor(QPalette::WindowText, QColor(Qt::white));
-            mode_label_ -> setPalette(palette);
-            break;
-        case(mav_comm_driver::MAVStatus::FLIGHT_MODE):
-            mode_label_ -> setText("飞行模式");
-            palette.setColor(QPalette::Background, QColor(0, 255, 0));
-            mode_label_ -> setPalette(palette);
-            palette.setColor(QPalette::WindowText, QColor(Qt::white));
-            mode_label_ -> setPalette(palette);
-            break; 
-        case(mav_comm_driver::MAVStatus::TUNING_MODE):
-            mode_label_ -> setText("调参模式");
-            palette.setColor(QPalette::Background, QColor(255, 255, 0));
-            mode_label_ -> setPalette(palette);
-            palette.setColor(QPalette::WindowText, QColor(Qt::black));
-            mode_label_ -> setPalette(palette);
-            break;
-        default:
-            mode_label_ -> setText("通讯故障");
-            palette.setColor(QPalette::Background, QColor(100, 100, 100));
-            mode_label_ -> setPalette(palette);
-            palette.setColor(QPalette::WindowText, QColor(Qt::white));
-            mode_label_ -> setPalette(palette);
-            return;
-    }
+//     QPalette palette;
+//     switch(mode_id_){
+//         case(mav_comm_driver::MAVStatus::FAULT_MODE):
+//             mode_label_ -> setText("故障模式");
+//             palette.setColor(QPalette::Background, QColor(255, 0, 0));
+//             mode_label_ -> setPalette(palette);
+//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
+//             mode_label_ -> setPalette(palette);
+//             break;
+//         case(mav_comm_driver::MAVStatus::START_MODE):
+//             mode_label_ -> setText("开始模式");
+//             palette.setColor(QPalette::Background, QColor(0, 0, 255));
+//             mode_label_ -> setPalette(palette);
+//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
+//             mode_label_ -> setPalette(palette);
+//             break;
+//         case(mav_comm_driver::MAVStatus::MANUAL_MODE):
+//             mode_label_ -> setText("手动模式");
+//             palette.setColor(QPalette::Background, QColor(0, 100, 100));
+//             mode_label_ -> setPalette(palette);
+//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
+//             mode_label_ -> setPalette(palette);
+//             break;
+//         case(mav_comm_driver::MAVStatus::FLIGHT_MODE):
+//             mode_label_ -> setText("飞行模式");
+//             palette.setColor(QPalette::Background, QColor(0, 255, 0));
+//             mode_label_ -> setPalette(palette);
+//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
+//             mode_label_ -> setPalette(palette);
+//             break; 
+//         case(mav_comm_driver::MAVStatus::TUNING_MODE):
+//             mode_label_ -> setText("调参模式");
+//             palette.setColor(QPalette::Background, QColor(255, 255, 0));
+//             mode_label_ -> setPalette(palette);
+//             palette.setColor(QPalette::WindowText, QColor(Qt::black));
+//             mode_label_ -> setPalette(palette);
+//             break;
+//         default:
+//             mode_label_ -> setText("通讯故障");
+//             palette.setColor(QPalette::Background, QColor(100, 100, 100));
+//             mode_label_ -> setPalette(palette);
+//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
+//             mode_label_ -> setPalette(palette);
+//             return;
+//     }
 
-    cur_roll_ = msg -> roll_angle;
-    cur_pitch_ = msg -> pitch_angle;
-    cur_yaw_ = msg -> yaw_angle;
-    cur_roll_rate_ = msg -> roll_rate;
-    cur_pitch_rate_ = msg -> pitch_rate;
-    cur_yaw_rate_ = msg -> yaw_rate;
-    cur_mid_servo_pwm_ = msg -> mid_servo_pwm;
-    cur_left_servo_pwm_ = msg -> left_servo_pwm;
-    cur_right_servo_pwm_ = msg -> right_servo_pwm;
-    cur_throttle_pwm_ = msg -> left_throttle_pwm;
-    cur_throttle_2_pwm_ = msg -> right_throttle_pwm;
-    cur_climb_pwm_ = msg -> climb_pwm;
-    cur_time_ms_ = msg -> board_time;
-    cur_pid_id_ = msg -> pid_id;
+//     cur_roll_ = msg -> roll_angle;
+//     cur_pitch_ = msg -> pitch_angle;
+//     cur_yaw_ = msg -> yaw_angle;
+//     cur_roll_rate_ = msg -> roll_rate;
+//     cur_pitch_rate_ = msg -> pitch_rate;
+//     cur_yaw_rate_ = msg -> yaw_rate;
+//     cur_mid_servo_pwm_ = msg -> mid_servo_pwm;
+//     cur_left_servo_pwm_ = msg -> left_servo_pwm;
+//     cur_right_servo_pwm_ = msg -> right_servo_pwm;
+//     cur_throttle_pwm_ = msg -> left_throttle_pwm;
+//     cur_throttle_2_pwm_ = msg -> right_throttle_pwm;
+//     cur_climb_pwm_ = msg -> climb_pwm;
+//     cur_time_ms_ = msg -> board_time;
+//     cur_pid_id_ = msg -> pid_id;
 
-    // update display values
-    char numstr[30];
-    sprintf(numstr, "%.2f", cur_roll_);
-    roll_label_ -> setText(numstr);
-    sprintf(numstr, "%.2f", cur_pitch_);
-    pitch_label_ -> setText(numstr);
-    sprintf(numstr, "%.2f", cur_yaw_);
-    yaw_label_ -> setText(numstr);
-    sprintf(numstr, "%.2f", cur_roll_rate_);
-    roll_rate_label_ -> setText(numstr);
-    sprintf(numstr, "%.2f", cur_pitch_rate_);
-    pitch_rate_label_ -> setText(numstr);
-    sprintf(numstr, "%.2f", cur_yaw_rate_);
-    yaw_rate_label_ -> setText(numstr);
+//     // update display values
+//     char numstr[30];
+//     sprintf(numstr, "%.2f", cur_roll_);
+//     roll_label_ -> setText(numstr);
+//     sprintf(numstr, "%.2f", cur_pitch_);
+//     pitch_label_ -> setText(numstr);
+//     sprintf(numstr, "%.2f", cur_yaw_);
+//     yaw_label_ -> setText(numstr);
+//     sprintf(numstr, "%.2f", cur_roll_rate_);
+//     roll_rate_label_ -> setText(numstr);
+//     sprintf(numstr, "%.2f", cur_pitch_rate_);
+//     pitch_rate_label_ -> setText(numstr);
+//     sprintf(numstr, "%.2f", cur_yaw_rate_);
+//     yaw_rate_label_ -> setText(numstr);
 
-#ifdef TWO_WING
-    sprintf(numstr, "%u", cur_mid_servo_pwm_);
-    mid_servo_label_ -> setText(numstr);
-#endif
-    sprintf(numstr, "%u", cur_left_servo_pwm_);
-    left_servo_label_ -> setText(numstr);
-    sprintf(numstr, "%u", cur_right_servo_pwm_);
-    right_servo_label_ -> setText(numstr);
-    sprintf(numstr, "%u", cur_throttle_pwm_);
-    throttle_label_ -> setText(numstr);
-#ifdef FOUR_WING
-    sprintf(numstr, "%u", cur_throttle_2_pwm_);
-    throttle_2_label_ -> setText(numstr);
-#endif
-#ifdef TWO_WING
-    sprintf(numstr, "%u", cur_climb_pwm_);
-    climb_label_ -> setText(numstr);
-#endif
+// #ifdef TWO_WING
+//     sprintf(numstr, "%u", cur_mid_servo_pwm_);
+//     mid_servo_label_ -> setText(numstr);
+// #endif
+//     sprintf(numstr, "%u", cur_left_servo_pwm_);
+//     left_servo_label_ -> setText(numstr);
+//     sprintf(numstr, "%u", cur_right_servo_pwm_);
+//     right_servo_label_ -> setText(numstr);
+//     sprintf(numstr, "%u", cur_throttle_pwm_);
+//     throttle_label_ -> setText(numstr);
+// #ifdef FOUR_WING
+//     sprintf(numstr, "%u", cur_throttle_2_pwm_);
+//     throttle_2_label_ -> setText(numstr);
+// #endif
+// #ifdef TWO_WING
+//     sprintf(numstr, "%u", cur_climb_pwm_);
+//     climb_label_ -> setText(numstr);
+// #endif
 
-    if(mode_id_ == tuning_mode){
+//     if(mode_id_ == tuning_mode){
 
-        if(!pid_id_label_ -> isVisible()){
-            pid_id_label_ -> setVisible(true);
-            pid_id_front_label_ -> setVisible(true);
-        }
-        switch(cur_pid_id_){
-            case(0):    //yaw
-                pid_id_label_ -> setText("Yaw");
-            break;
-            case(1):    //pitch
-                pid_id_label_ -> setText("Pitch");
-            break;
-            case(2):    //roll
-                pid_id_label_ -> setText("Roll");
-            break;
-        }
-    }
-    else{
-        if(pid_id_label_ -> isVisible()){
-            pid_id_label_ -> setVisible(false);
-            pid_id_front_label_ -> setVisible(false);
-        }
-    }
+//         if(!pid_id_label_ -> isVisible()){
+//             pid_id_label_ -> setVisible(true);
+//             pid_id_front_label_ -> setVisible(true);
+//         }
+//         switch(cur_pid_id_){
+//             case(0):    //yaw
+//                 pid_id_label_ -> setText("Yaw");
+//             break;
+//             case(1):    //pitch
+//                 pid_id_label_ -> setText("Pitch");
+//             break;
+//             case(2):    //roll
+//                 pid_id_label_ -> setText("Roll");
+//             break;
+//         }
+//     }
+//     else{
+//         if(pid_id_label_ -> isVisible()){
+//             pid_id_label_ -> setVisible(false);
+//             pid_id_front_label_ -> setVisible(false);
+//         }
+//     }
 
-    if(!time_s_label_ -> isVisible())
-        boxLayoutVisible(time_layout_, true);
-    sprintf(numstr, "%u s", cur_time_ms_ / 1000000);
-    time_s_label_ -> setText(numstr);
-    sprintf(numstr, "%03u ms %03u us [开机时间]", (cur_time_ms_/1000) % 1000, cur_time_ms_ % 1000);
-    time_ms_label_ -> setText(numstr);
+//     if(!time_s_label_ -> isVisible())
+//         boxLayoutVisible(time_layout_, true);
+//     sprintf(numstr, "%u s", cur_time_ms_ / 1000000);
+//     time_s_label_ -> setText(numstr);
+//     sprintf(numstr, "%03u ms %03u us [开机时间]", (cur_time_ms_/1000) % 1000, cur_time_ms_ % 1000);
+//     time_ms_label_ -> setText(numstr);
 
-    //temp marker for the 3d model vislization
-    // visualization_msgs::Marker marker;
-    // marker.pose.orientation.x = msg -> odom.pose.pose.orientation.x;
-    // marker.pose.orientation.y = msg -> odom.pose.pose.orientation.y;
-    // marker.pose.orientation.z = msg -> odom.pose.pose.orientation.z;
-    // marker.pose.orientation.w = msg -> odom.pose.pose.orientation.w;
+//     //temp marker for the 3d model vislization
+//     // visualization_msgs::Marker marker;
+//     // marker.pose.orientation.x = msg -> odom.pose.pose.orientation.x;
+//     // marker.pose.orientation.y = msg -> odom.pose.pose.orientation.y;
+//     // marker.pose.orientation.z = msg -> odom.pose.pose.orientation.z;
+//     // marker.pose.orientation.w = msg -> odom.pose.pose.orientation.w;
 
-    // marker.header.frame_id = "map";
-    // marker.id = 1;
-    // marker.lifetime = ros::Duration(0.5);
-    // marker.color.a = 0.8;
-    // marker.color.r = 1; marker.color.g = 0; marker.color.b = 0;
-    // marker.scale.x = 0.5; marker.scale.y = 0.5; marker.scale.z = 2;
-    // marker.type = visualization_msgs::Marker::CUBE;
-    // marker.action = visualization_msgs::Marker::MODIFY;
-    // marker.frame_locked = false;
-    // marker.pose.position.x = 0;
-    // marker.pose.position.y = 0;
+//     // marker.header.frame_id = "map";
+//     // marker.id = 1;
+//     // marker.lifetime = ros::Duration(0.5);
+//     // marker.color.a = 0.8;
+//     // marker.color.r = 1; marker.color.g = 0; marker.color.b = 0;
+//     // marker.scale.x = 0.5; marker.scale.y = 0.5; marker.scale.z = 2;
+//     // marker.type = visualization_msgs::Marker::CUBE;
+//     // marker.action = visualization_msgs::Marker::MODIFY;
+//     // marker.frame_locked = false;
+//     // marker.pose.position.x = 0;
+//     // marker.pose.position.y = 0;
 
-    // vis_pub_.publish(marker);
+//     // vis_pub_.publish(marker);
 
-    //send tf transform
-    tf::Transform transform;
-    tf::Quaternion q;
-    q.setX(msg -> odom.pose.pose.orientation.x);
-    q.setY(msg -> odom.pose.pose.orientation.y);
-    q.setZ(msg -> odom.pose.pose.orientation.z);
-    q.setW(msg -> odom.pose.pose.orientation.w);
-    transform.setRotation(q);
-    transform.setOrigin(tf::Vector3(msg -> odom.pose.pose.position.x,
-                                    msg -> odom.pose.pose.position.y,
-                                    msg -> odom.pose.pose.position.z));
-    tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
+//     //send tf transform
+//     tf::Transform transform;
+//     tf::Quaternion q;
+//     q.setX(msg -> odom.pose.pose.orientation.x);
+//     q.setY(msg -> odom.pose.pose.orientation.y);
+//     q.setZ(msg -> odom.pose.pose.orientation.z);
+//     q.setW(msg -> odom.pose.pose.orientation.w);
+//     transform.setRotation(q);
+//     transform.setOrigin(tf::Vector3(msg -> odom.pose.pose.position.x,
+//                                     msg -> odom.pose.pose.position.y,
+//                                     msg -> odom.pose.pose.position.z));
+//     tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
 
 }
 

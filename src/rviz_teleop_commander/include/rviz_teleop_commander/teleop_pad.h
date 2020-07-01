@@ -27,8 +27,9 @@
 #include <QMessageBox>
 #include <QTimer>
 
-#include <mav_comm_driver/MAVStatus.h>
+// #include <mav_comm_driver/MAVStatus.h>
 #include <mav_comm_driver/ModeConfig.h>
+#include <mav_comm_driver/MFPUnified.h>
 #include <rviz_teleop_commander/joystick_widget.h>
 #endif
 
@@ -37,6 +38,8 @@
 #else
     #define THROTTLE_MAX 999
 #endif
+
+#define DEG2RAD (M_PI/180.0)
 
 class QLineEdit;
 
@@ -77,7 +80,7 @@ public:
 
 // 内部槽.
 protected Q_SLOTS:
-    void updateMAVStatus(const mav_comm_driver::MAVStatus::ConstPtr&);
+    void updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPtr&);
     void uploadConfig();
     void checkConnection();
     void setParamMode(int);
