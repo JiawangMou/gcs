@@ -636,9 +636,9 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
         break;
 
         case(mav_comm_driver::MFPUnified::UP_SENSER):
-            cur_roll_rate_ = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10;
-            cur_pitch_rate_ = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10;
-            cur_yaw_rate_ = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10;
+            cur_roll_rate_ = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
+            cur_pitch_rate_ = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
+            cur_yaw_rate_ = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
 
             // update display values
             sprintf(numstr, "%.2f", cur_roll_rate_);
@@ -1573,11 +1573,21 @@ void FMAVStatusPanel::displayStatus(){
 
     QPalette palette;
     if(is_connected){
-        mode_label_ -> setText("连接正常");
-        palette.setColor(QPalette::Background, QColor(0, 255, 0));
-        mode_label_ -> setPalette(palette);
-        palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
-        mode_label_ -> setPalette(palette);
+        if(!is_vicon_started){
+            mode_label_ -> setText("连接正常");
+            palette.setColor(QPalette::Background, QColor(0, 255, 0));
+            mode_label_ -> setPalette(palette);
+            palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
+            mode_label_ -> setPalette(palette);
+        }
+        else{
+            mode_label_ -> setText("Vicon测试中");
+            palette.setColor(QPalette::Background, QColor(255, 165, 0));
+            mode_label_ -> setPalette(palette);
+            palette.setColor(QPalette::WindowText, QColor(200, 0, 255));
+            mode_label_ -> setPalette(palette);
+        }
+
     }
     else{
         mode_label_ -> setText("连接断开");
