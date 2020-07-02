@@ -83,6 +83,7 @@ public:
 protected Q_SLOTS:
     void updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPtr&);
     void uploadConfig();
+    void downloadConfig();
     void checkConnection();
     void setParamMode(int);
     void changeTuningAxis(int);
@@ -94,6 +95,7 @@ protected Q_SLOTS:
     void refreshViconTopicList();
     void viconStartEnd();
     void joystickMove(float x, float y);
+    void endMessage();
 
 protected:
     void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
@@ -102,6 +104,8 @@ protected:
     void getParamValues();
     void setPanelValues();
     std::string getCommandOutput(const char* cmd);
+    void displayMessage(const QString&, const QColor&);
+    void displayStatus();
 
 // 内部变量.
 protected:
@@ -173,6 +177,7 @@ protected:
     //参数设置标题控件
     QLabel* para_front_label_;
     QPushButton* upload_to_mav_;
+    QPushButton* download_from_mav_;
     QLabel* write_flash_front_label_;
     QCheckBox* write_flash_checkbox_;
 
@@ -307,11 +312,13 @@ protected:
     tf::TransformBroadcaster tf_pub_;
 
     QTimer* joystick_send_timer_;
+    QTimer* message_display_timer_;
 
     //子进程句柄
     // FILE* joystick_;
 
     bool is_connected;
+    bool is_displaying_msg;
     bool is_vicon_started;
 
     uint mav_down_msg_cnt_;

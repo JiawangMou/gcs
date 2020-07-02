@@ -54,6 +54,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     is_throttle_2_enabled_ = 0;
 #endif
     is_vicon_started = false;
+    is_displaying_msg = false;
 
     // 标志logo
     std::string logo_img_path;
@@ -67,9 +68,10 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 
     // 建立一个水平layout(显示飞行模式)
     QHBoxLayout* mode_layout = new QHBoxLayout;
-    mode_front_label_ = new QLabel("飞行器当前模式");
+    mode_front_label_ = new QLabel("状态");
     mode_front_label_ -> setAlignment(Qt::AlignCenter);
     mode_front_label_ -> setFont(QFont("Timers", 18, QFont::Normal));
+    mode_front_label_ -> setMaximumWidth(100);
     mode_layout -> addWidget(mode_front_label_);
     mode_label_ = new QLabel("尚未连接");
     mode_label_ -> setAlignment(Qt::AlignCenter);
@@ -223,10 +225,13 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     para_front_label_ = new QLabel("参数设置");
     para_front_label_ -> setAlignment(Qt::AlignCenter);
     para_menu -> addWidget(para_front_label_);
-    upload_to_mav_ = new QPushButton("上传参数至MAV");
+    upload_to_mav_ = new QPushButton("上传参数");
     upload_to_mav_ -> setEnabled(false);
     para_menu -> addWidget(upload_to_mav_);
-    write_flash_front_label_ = new QLabel("写flash: ");
+    download_from_mav_ = new QPushButton("下载参数");
+    download_from_mav_ -> setEnabled(false);
+    para_menu -> addWidget(download_from_mav_);
+    write_flash_front_label_ = new QLabel("写flash");
     write_flash_front_label_ -> setAlignment(Qt::AlignRight);
     para_menu -> addWidget(write_flash_front_label_);
     write_flash_checkbox_ = new QCheckBox();
@@ -532,7 +537,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 
     mav_down_sub_ = nh_.subscribe("/received_data", 10, &FMAVStatusPanel::updateMAVStatus, this);
     vis_pub_ = nh_.advertise< visualization_msgs::Marker>("/mav_vis", 10);
-    mav_config_pub_ = nh_.advertise<mav_comm_driver::ModeConfig>("/mode_config", 10);
+    mav_config_pub_ = nh_.advertise<mav_comm_driver::MFPUnified>("/mav_download", 10);
 
     //飞行模式手柄下发计时器
     joystick_send_timer_ = new QTimer( this );
@@ -542,9 +547,14 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mav_down_msg_cnt_ = mav_down_msg_cnt_prev_ = 0;
     is_connected = false;
 
+    //消息显示延时计时器
+    message_display_timer_ = new QTimer( this );
+    connect( message_display_timer_, SIGNAL( timeout() ), this, SLOT( endMessage() ));
+
     connect( connection_check_timer, SIGNAL( timeout() ), this, SLOT( checkConnection() ));
     connect( joystick_send_timer_, SIGNAL( timeout() ), this, SLOT( uploadJoystick() ));
     connect( upload_to_mav_,  SIGNAL( clicked() ), this, SLOT( uploadConfig() ));
+    connect( download_from_mav_,  SIGNAL( clicked() ), this, SLOT( downloadConfig() ));
     connect( mode_sel_combo_, SIGNAL(currentIndexChanged(int)), this, SLOT(setParamMode(int)));
     connect( pid_id_btn_group_, SIGNAL(buttonClicked(int)), this, SLOT(changeTuningAxis(int)));
     connect( throttle_enable_, SIGNAL(clicked()), this, SLOT(enableThrottle()));
@@ -581,17 +591,14 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
 
     if(!is_connected){
         is_connected = true;
-
-        //设置连接图标
-        mode_label_ -> setText("连接正常");
-        palette.setColor(QPalette::Background, QColor(0, 255, 0));
-        mode_label_ -> setPalette(palette);
-        palette.setColor(QPalette::WindowText, QColor(Qt::white));
-        mode_label_ -> setPalette(palette);
+        displayStatus();
     }
     
     if(!upload_to_mav_ -> isEnabled())
         upload_to_mav_ -> setEnabled(true);
+    
+    if(!download_from_mav_ -> isEnabled())
+        download_from_mav_ -> setEnabled(true);
 
     if(!throttle_enable_ -> isEnabled()){
         throttle_enable_ -> setEnabled(true);
@@ -627,6 +634,55 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
             }
         break;
+
+        case(mav_comm_driver::MFPUnified::UP_SENSER):
+            cur_roll_rate_ = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10;
+            cur_pitch_rate_ = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10;
+            cur_yaw_rate_ = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10;
+
+            // update display values
+            sprintf(numstr, "%.2f", cur_roll_rate_);
+            roll_rate_label_ -> setText(numstr);
+            sprintf(numstr, "%.2f", cur_pitch_rate_);
+            pitch_rate_label_ -> setText(numstr);
+            sprintf(numstr, "%.2f", cur_yaw_rate_);
+            yaw_rate_label_ -> setText(numstr);
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_PID1):
+            //0: yaw, 1: pitch, 2:roll
+            pid_int_set_[2][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
+            pid_int_set_[2][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
+            pid_int_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_int_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
+            pid_int_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
+            pid_int_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_int_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
+            pid_int_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
+            pid_int_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+
+            displayMessage("收到内环PID参数", Qt::yellow);
+            // update display values
+            setPanelValues();
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_PID2):
+            //0: yaw, 1: pitch, 2:roll
+            pid_ext_set_[2][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
+            pid_ext_set_[2][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
+            pid_ext_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_ext_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
+            pid_ext_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
+            pid_ext_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_ext_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
+            pid_ext_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
+            pid_ext_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+
+            displayMessage("收到外环PID参数", Qt::yellow);
+            // update display values
+            setPanelValues();
+        break;
+
     }
 	
 
@@ -825,217 +881,233 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
 
     getParamValues();
     Q_EMIT configChanged();
-    mav_comm_driver::ModeConfig msg;
-    uint i;
+//     mav_comm_driver::ModeConfig msg;
+//     uint i;
 
-    if(!is_connected) return;
+//     if(!is_connected) return;
 
-    switch(param_mode_){
-        case(fault_mode):
-            msg.mode_id = fault_mode;
-            msg.data.reserve(3);
-            msg.data.push_back(fault_mode);
-            msg.data.push_back(0x0d);
-            msg.data.push_back(0x0a);
-        break;
+//     switch(param_mode_){
+//         case(fault_mode):
+//             msg.mode_id = fault_mode;
+//             msg.data.reserve(3);
+//             msg.data.push_back(fault_mode);
+//             msg.data.push_back(0x0d);
+//             msg.data.push_back(0x0a);
+//         break;
 
-        case(start_mode):
-            msg.mode_id = start_mode;
-#ifdef TWO_WING
-            msg.data.reserve(7);
-#else
-            msg.data.reserve(9);
-#endif
-            msg.data.push_back(start_mode);
-            msg.data.push_back(right_servo_pwm_set_);
-            msg.data.push_back(left_servo_pwm_set_);
-#ifdef TWO_WING
-            msg.data.push_back(mid_servo_pwm_set_);
-            if(is_throttle_enabled_)
-                msg.data.push_back(throttle_pwm_set_);
-            else
-                msg.data.push_back(0);
-#else
-            if(is_throttle_enabled_){
-                msg.data.push_back(throttle_pwm_set_);
-                msg.data.push_back(throttle_pwm_set_ >> 8);
-            }
-            else{
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-            }
-            if(is_throttle_2_enabled_){
-                msg.data.push_back(throttle_2_pwm_set_);
-                msg.data.push_back(throttle_2_pwm_set_ >> 8);
-            }
-            else{
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-            }
-#endif
-            msg.data.push_back(0x0d);
-            msg.data.push_back(0x0a);
-        break;
+//         case(start_mode):
+//             msg.mode_id = start_mode;
+// #ifdef TWO_WING
+//             msg.data.reserve(7);
+// #else
+//             msg.data.reserve(9);
+// #endif
+//             msg.data.push_back(start_mode);
+//             msg.data.push_back(right_servo_pwm_set_);
+//             msg.data.push_back(left_servo_pwm_set_);
+// #ifdef TWO_WING
+//             msg.data.push_back(mid_servo_pwm_set_);
+//             if(is_throttle_enabled_)
+//                 msg.data.push_back(throttle_pwm_set_);
+//             else
+//                 msg.data.push_back(0);
+// #else
+//             if(is_throttle_enabled_){
+//                 msg.data.push_back(throttle_pwm_set_);
+//                 msg.data.push_back(throttle_pwm_set_ >> 8);
+//             }
+//             else{
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//             }
+//             if(is_throttle_2_enabled_){
+//                 msg.data.push_back(throttle_2_pwm_set_);
+//                 msg.data.push_back(throttle_2_pwm_set_ >> 8);
+//             }
+//             else{
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//             }
+// #endif
+//             msg.data.push_back(0x0d);
+//             msg.data.push_back(0x0a);
+//         break;
 
-        case(manual_mode):
-            msg.mode_id = manual_mode;
-#ifdef TWO_WING
-            msg.data.reserve(8);
-#else
-            msg.data.reserve(9);
-#endif
-            msg.data.push_back(manual_mode);
-            msg.data.push_back(right_servo_pwm_set_);
-            msg.data.push_back(left_servo_pwm_set_);
-#ifdef TWO_WING
-            msg.data.push_back(mid_servo_pwm_set_);
+//         case(manual_mode):
+//             msg.mode_id = manual_mode;
+// #ifdef TWO_WING
+//             msg.data.reserve(8);
+// #else
+//             msg.data.reserve(9);
+// #endif
+//             msg.data.push_back(manual_mode);
+//             msg.data.push_back(right_servo_pwm_set_);
+//             msg.data.push_back(left_servo_pwm_set_);
+// #ifdef TWO_WING
+//             msg.data.push_back(mid_servo_pwm_set_);
 
-            if(is_throttle_enabled_)
-                msg.data.push_back(throttle_pwm_set_);
-            else
-                msg.data.push_back(0);
+//             if(is_throttle_enabled_)
+//                 msg.data.push_back(throttle_pwm_set_);
+//             else
+//                 msg.data.push_back(0);
             
-            msg.data.push_back(climb_pwm_set_);
-#else
-            if(is_throttle_enabled_){
-                msg.data.push_back(throttle_pwm_set_);
-                msg.data.push_back(throttle_pwm_set_ >> 8);
-            }
-            else{
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-            }
-            if(is_throttle_2_enabled_){
-                msg.data.push_back(throttle_2_pwm_set_);
-                msg.data.push_back(throttle_2_pwm_set_ >> 8);
-            }
-            else{
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-            }
-#endif
-            msg.data.push_back(0x0d);
-            msg.data.push_back(0x0a);
-        break;
+//             msg.data.push_back(climb_pwm_set_);
+// #else
+//             if(is_throttle_enabled_){
+//                 msg.data.push_back(throttle_pwm_set_);
+//                 msg.data.push_back(throttle_pwm_set_ >> 8);
+//             }
+//             else{
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//             }
+//             if(is_throttle_2_enabled_){
+//                 msg.data.push_back(throttle_2_pwm_set_);
+//                 msg.data.push_back(throttle_2_pwm_set_ >> 8);
+//             }
+//             else{
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//             }
+// #endif
+//             msg.data.push_back(0x0d);
+//             msg.data.push_back(0x0a);
+//         break;
 
-        case(flight_mode):
-            msg.mode_id = flight_mode;
-            msg.data.reserve(9);
-            msg.data.push_back(flight_mode);
-            msg.data.push_back(0);
-            msg.data.push_back(0);
-            msg.data.push_back(0);
-            msg.data.push_back(0);
-#ifdef TWO_WING
-            if(is_throttle_enabled_)
-                msg.data.push_back(throttle_pwm_set_);
-            else
-                msg.data.push_back(0);
-#endif
-#ifdef FOUR_WING
-            if(is_throttle_enabled_){
-                msg.data.push_back(throttle_pwm_set_);
-                msg.data.push_back(throttle_pwm_set_ >> 8);
-            }
-            else{
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-            }
-#endif
+//         case(flight_mode):
+//             msg.mode_id = flight_mode;
+//             msg.data.reserve(9);
+//             msg.data.push_back(flight_mode);
+//             msg.data.push_back(0);
+//             msg.data.push_back(0);
+//             msg.data.push_back(0);
+//             msg.data.push_back(0);
+// #ifdef TWO_WING
+//             if(is_throttle_enabled_)
+//                 msg.data.push_back(throttle_pwm_set_);
+//             else
+//                 msg.data.push_back(0);
+// #endif
+// #ifdef FOUR_WING
+//             if(is_throttle_enabled_){
+//                 msg.data.push_back(throttle_pwm_set_);
+//                 msg.data.push_back(throttle_pwm_set_ >> 8);
+//             }
+//             else{
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//             }
+// #endif
             
-            msg.data.push_back(0x0d);
-            msg.data.push_back(0x0a);
-        break;
+//             msg.data.push_back(0x0d);
+//             msg.data.push_back(0x0a);
+//         break;
 
-        case(tuning_mode):
-            msg.mode_id = tuning_mode;
-#ifdef TWO_WING
-            msg.data.reserve(26);
-#else
-            msg.data.reserve(29);
-#endif
-            msg.data.push_back(tuning_mode);
+//         case(tuning_mode):
+//             msg.mode_id = tuning_mode;
+// #ifdef TWO_WING
+//             msg.data.reserve(26);
+// #else
+//             msg.data.reserve(29);
+// #endif
+//             msg.data.push_back(tuning_mode);
 
-            int16_t tmp_16;
-            tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][0] * 100);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
-            tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][1] * 100);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
-            tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][2] * 100);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
+//             int16_t tmp_16;
+//             tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][0] * 100);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
+//             tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][1] * 100);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
+//             tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][2] * 100);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
 
-            tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][0] * 100);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
-            tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][1] * 100);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
-            tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][2] * 100);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
+//             tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][0] * 100);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
+//             tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][1] * 100);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
+//             tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][2] * 100);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
 
-            msg.data.push_back(pid_freq_);
+//             msg.data.push_back(pid_freq_);
 
-            msg.data.push_back((uint8_t)pid_id_set_);
+//             msg.data.push_back((uint8_t)pid_id_set_);
 
-            tmp_16 = (int16_t)(pid_ext_lowlimit_[pid_id_set_] * 10);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
-            tmp_16 = (int16_t)(pid_ext_uplimit_[pid_id_set_] * 10);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
-            msg.data.push_back(pid_int_lowlimit_[pid_id_set_]);
-            msg.data.push_back(pid_int_uplimit_[pid_id_set_]);
+//             tmp_16 = (int16_t)(pid_ext_lowlimit_[pid_id_set_] * 10);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
+//             tmp_16 = (int16_t)(pid_ext_uplimit_[pid_id_set_] * 10);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
+//             msg.data.push_back(pid_int_lowlimit_[pid_id_set_]);
+//             msg.data.push_back(pid_int_uplimit_[pid_id_set_]);
 
-            tmp_16 = (int16_t)(pid_setvalue_[pid_id_set_] * 100);
-            msg.data.push_back(tmp_16);
-            msg.data.push_back(tmp_16 >> 8);
+//             tmp_16 = (int16_t)(pid_setvalue_[pid_id_set_] * 100);
+//             msg.data.push_back(tmp_16);
+//             msg.data.push_back(tmp_16 >> 8);
 
-#ifdef TWO_WING
-            if(is_throttle_enabled_)
-                msg.data.push_back(throttle_pwm_set_);
-            else
-                msg.data.push_back(0);
-#else
-            if(is_throttle_enabled_){
-                msg.data.push_back(throttle_pwm_set_);
-                msg.data.push_back(throttle_pwm_set_ >> 8);
-                msg.data.push_back(throttle_pwm_set_);
-                msg.data.push_back(throttle_pwm_set_ >> 8);
-            }
-            else{
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-                msg.data.push_back(0);
-            }
-#endif
+// #ifdef TWO_WING
+//             if(is_throttle_enabled_)
+//                 msg.data.push_back(throttle_pwm_set_);
+//             else
+//                 msg.data.push_back(0);
+// #else
+//             if(is_throttle_enabled_){
+//                 msg.data.push_back(throttle_pwm_set_);
+//                 msg.data.push_back(throttle_pwm_set_ >> 8);
+//                 msg.data.push_back(throttle_pwm_set_);
+//                 msg.data.push_back(throttle_pwm_set_ >> 8);
+//             }
+//             else{
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//                 msg.data.push_back(0);
+//             }
+// #endif
 
-            msg.data.push_back(0x0d);
-            msg.data.push_back(0x0a);
+//             msg.data.push_back(0x0d);
+//             msg.data.push_back(0x0a);
 
+//         break;
+//     }
+//     if(write_flash_checkbox_ -> isChecked()){
+//         msg.mode_id = msg.mode_id | 0x01;
+//         msg.data[0] = msg.data[0] | 0x01;
+//     }
+//     mav_config_pub_.publish(msg);
+}
+
+void FMAVStatusPanel::downloadConfig(){ //button slot: download config from fmav
+    
+    mav_comm_driver::MFPUnified msg;
+    
+    switch (param_mode_)
+    {
+    case tuning_mode:
+        msg.msg_id = mav_comm_driver::MFPUnified::DOWN_ACK;
+        msg.length = 1;
+        msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_ACK);
+        msg.data.push_back(1);
+        msg.data.push_back(0x01);   // CMD 0x01 读取PID请求
         break;
     }
-    if(write_flash_checkbox_ -> isChecked()){
-        msg.mode_id = msg.mode_id | 0x01;
-        msg.data[0] = msg.data[0] | 0x01;
-    }
+
+    msg.header.stamp = ros::Time::now();
     mav_config_pub_.publish(msg);
 }
 
 void FMAVStatusPanel::checkConnection(){
     if(mav_down_msg_cnt_ == mav_down_msg_cnt_prev_){
         is_connected = false;
-        QPalette palette;
-        mode_label_ -> setText("连接断开");
-        palette.setColor(QPalette::Background, QColor(100, 100, 100));
-        mode_label_ -> setPalette(palette);
-        palette.setColor(QPalette::WindowText, QColor(Qt::white));
-        mode_label_ -> setPalette(palette);
+        displayStatus();
+
         upload_to_mav_ -> setEnabled(false);
+        download_from_mav_ -> setEnabled(false);
 	    throttle_enable_ -> setEnabled(false);
         if(is_throttle_enabled_){
             throttle_pwm_set_ = 0;
@@ -1465,6 +1537,55 @@ void FMAVStatusPanel::viconReceive(const geometry_msgs::TransformStamped::ConstP
     new_tf_msg.header.frame_id = "map";
     new_tf_msg.child_frame_id = "base_link";
     tf_pub_.sendTransform(new_tf_msg);
+    return;
+}
+
+// 显示消息
+void FMAVStatusPanel::displayMessage(const QString& msg, const QColor &color){
+
+    if(is_displaying_msg){
+        if(message_display_timer_ -> isActive())
+            message_display_timer_ -> stop();
+    }
+
+    is_displaying_msg = true;
+    message_display_timer_ -> start(1000); //T = 1000ms
+
+    //设置消息
+    QPalette palette;
+    mode_label_ -> setText(msg);
+    palette.setColor(QPalette::Background, color);
+    mode_label_ -> setPalette(palette);
+    palette.setColor(QPalette::WindowText, QColor(255 - color.red(), 255 - color.green(), 255 - color.blue()));
+    mode_label_ -> setPalette(palette);
+
+}
+
+void FMAVStatusPanel::endMessage(){
+    
+    message_display_timer_ -> stop();
+    is_displaying_msg = false;
+    displayStatus();
+    return;
+}
+
+void FMAVStatusPanel::displayStatus(){
+
+    QPalette palette;
+    if(is_connected){
+        mode_label_ -> setText("连接正常");
+        palette.setColor(QPalette::Background, QColor(0, 255, 0));
+        mode_label_ -> setPalette(palette);
+        palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
+        mode_label_ -> setPalette(palette);
+    }
+    else{
+        mode_label_ -> setText("连接断开");
+        palette.setColor(QPalette::Background, QColor(100, 100, 100));
+        mode_label_ -> setPalette(palette);
+        palette.setColor(QPalette::WindowText, QColor(Qt::white));
+        mode_label_ -> setPalette(palette);
+    }
     return;
 }
 

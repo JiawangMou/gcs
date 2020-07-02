@@ -38,7 +38,7 @@ void send_config(const mav_comm_driver::MFPUnified::ConstPtr& msg){
     ros_ser.write(msg -> data);
     ros_ser.write(&send_check_sum, 1);
 
-    ROS_INFO_STREAM("Configuration Sent. Size:" << msg -> data.size() + 3);
+    ROS_INFO("Msg with ID:AAAF0x%02x Sent.", msg -> msg_id);
     return;
 }
 
@@ -104,9 +104,9 @@ int main(int argc, char** argv){
                 check_sum = 0;
                 for(i = 0 ;i < serial_data.size() - 1; i++){
                     check_sum += serial_data[i];
-                    printf("%02x ",(uint8_t)serial_data[i]);
+                    // printf("%02x ",(uint8_t)serial_data[i]);
                 }
-                printf("\n");
+                // printf("\n");
                 check_sum += 0x54;  //0xAA + 0xAA
                 if(check_sum != serial_data[serial_data.size() - 1]){
                     ROS_WARN("Bad Check Sum. Dropped.");
