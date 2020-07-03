@@ -38,7 +38,7 @@ void send_config(const mav_comm_driver::MFPUnified::ConstPtr& msg){
     ros_ser.write(msg -> data);
     ros_ser.write(&send_check_sum, 1);
 
-    ROS_INFO("Msg with ID:AAAF0x%02x Sent.", msg -> msg_id);
+    // ROS_INFO("Msg with ID:AAAF0x%02x Sent.", msg -> msg_id);
     return;
 }
 
@@ -51,7 +51,7 @@ int main(int argc, char** argv){
     ros::Subscriber config_sub = n.subscribe("/mav_download", 10, send_config);
 
     //发布主题sensor
-    ros::Publisher mav_data_pub = n.advertise<mav_comm_driver::MFPUnified>("/received_data", 10);
+    ros::Publisher mav_data_pub = n.advertise<mav_comm_driver::MFPUnified>("/received_data", 100);
 
     string port = "";
     n.param<std::string>("/mav_driver/port", port, "/dev/ttyACM0");
@@ -97,6 +97,8 @@ int main(int argc, char** argv){
         if(ros_ser.read(head_judge_buffer, 1) && head_judge_buffer[0] == 0xaa){
             if(ros_ser.read(head_judge_buffer, 1) && head_judge_buffer[0] == 0xaa){
 
+                rec_msg.header.stamp = ros::Time::now();
+
                 serial_data.clear();
                 ros_ser.read(serial_data, 2);
                 ros_ser.read(serial_data, serial_data[1] + 1);
@@ -113,7 +115,6 @@ int main(int argc, char** argv){
                 }
                 else{
                     serial_data.pop_back();
-                    rec_msg.header.stamp = ros::Time::now();
                     rec_msg.msg_id = serial_data[0];
                     rec_msg.length = serial_data[1];
                     rec_msg.data = serial_data;

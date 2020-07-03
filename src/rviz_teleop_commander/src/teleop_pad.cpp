@@ -615,14 +615,14 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             cur_yaw_ = - (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
 
             // update display values
-            sprintf(numstr, "%.2f", cur_roll_);
-            roll_label_ -> setText(numstr);
-            sprintf(numstr, "%.2f", cur_pitch_);
-            pitch_label_ -> setText(numstr);
-            sprintf(numstr, "%.2f", cur_yaw_);
-            yaw_label_ -> setText(numstr);
-
             if(!is_vicon_started){
+                sprintf(numstr, "%.2f", cur_roll_);
+                roll_label_ -> setText(numstr);
+                sprintf(numstr, "%.2f", cur_pitch_);
+                pitch_label_ -> setText(numstr);
+                sprintf(numstr, "%.2f", cur_yaw_);
+                yaw_label_ -> setText(numstr);
+
                 //send tf transform
                 tf::Transform transform;
                 tf::Quaternion q;
@@ -1537,6 +1537,20 @@ void FMAVStatusPanel::viconReceive(const geometry_msgs::TransformStamped::ConstP
     new_tf_msg.header.frame_id = "map";
     new_tf_msg.child_frame_id = "base_link";
     tf_pub_.sendTransform(new_tf_msg);
+
+    tf::Quaternion quat;
+    tf::quaternionMsgToTF(msg -> transform.rotation, quat);
+    double roll, pitch, yaw;
+    tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);   //In radians
+
+    char numstr[30];
+    sprintf(numstr, "%.2f", roll / DEG2RAD);
+    roll_label_ -> setText(numstr);
+    sprintf(numstr, "%.2f", pitch / DEG2RAD);
+    pitch_label_ -> setText(numstr);
+    sprintf(numstr, "%.2f", yaw / DEG2RAD);
+    yaw_label_ -> setText(numstr);
+
     return;
 }
 
