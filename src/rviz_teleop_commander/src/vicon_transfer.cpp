@@ -7,6 +7,7 @@
 #include <mav_comm_driver/MFPUnified.h>
 #include <string>
 #include <iostream>
+#include <queue>
 
 #include <Filter.hpp>
 
@@ -33,6 +34,13 @@ static control_t pid_output;
 static Sensor::BiquadFilter angle_roll_filter, angle_pitch_filter, angle_yaw_filter;
 static ros::Time vicon_time_stamp;
 static ros::Time mav_time_stamp;
+static std::queue<uint64_t> last_sent_stamp;
+static std::queue<uint8_t> last_sent_check_sum;
+
+static bool vicon_receive_flag = false;
+static bool mav_receive_flag = false;
+static int mav_check_count = 0;
+static double time_elapse_check_sum = 0.0;
 
 void viconCallback(const geometry_msgs::TransformStamped::ConstPtr& msg){
     //DEBUG CODE
@@ -50,6 +58,8 @@ void viconCallback(const geometry_msgs::TransformStamped::ConstPtr& msg){
     actual_angle.yaw = angle_yaw_filter.biquadFilterApply(yaw * RAD2DEG);
     vicon_time_stamp = msg -> header.stamp;
 
+    vicon_receive_flag = true;
+
     return;
 }
 
@@ -60,6 +70,28 @@ void mavReceiveCallback(const mav_comm_driver::MFPUnified::ConstPtr& msg){
         actual_rate.pitch = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10;
         actual_rate.yaw = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10;
         mav_time_stamp = msg -> header.stamp;
+
+        mav_receive_flag = true;
+    }
+    if(msg -> msg_id == mav_comm_driver::MFPUnified::UP_CHECK && msg -> data[2] == 0x16){
+
+        while(!last_sent_check_sum.empty() && msg -> data[3] != last_sent_check_sum.front()){
+            last_sent_check_sum.pop();
+            last_sent_stamp.pop();
+        }
+    
+        if(!last_sent_check_sum.empty()){
+            time_elapse_check_sum += (msg -> header.stamp.toNSec() - last_sent_stamp.front()) / 1000000.0;
+            mav_check_count ++;
+            last_sent_check_sum.pop();
+            last_sent_stamp.pop();
+            if(mav_check_count == 200){
+                ROS_INFO_STREAM("AVG Receive Delay is " << time_elapse_check_sum / mav_check_count << " ms");
+                mav_check_count = 0;
+                time_elapse_check_sum = 0.0;
+            }
+        }
+
     }
     return;
 }
@@ -113,12 +145,16 @@ int main(int argc, char **argv)
     ros::Rate r(CONTROL_FREQ);
     mav_comm_driver::MFPUnified control_msg;
     geometry_msgs::Vector3 tmp;
-    int count = 0;
+    int count_vicon = 0;
+    int count_mav = 0;
     double time_elapse_sum_vicon = 0.0;
     double time_elapse_sum_mav = 0.0;
+
+    ros::AsyncSpinner aspin(4);
+    aspin.start();
+
     while(ros::ok()){
 
-        ros::spinOnce();
         //PID cal
         attitudeAnglePID(&actual_angle, &desired_angle, &desired_rate);
         attitudeRatePID(&actual_rate, &desired_rate, &pid_output);
@@ -129,32 +165,50 @@ int main(int argc, char **argv)
         control_msg.data.clear();
         control_msg.data.push_back(0x16);
         control_msg.data.push_back(6);
-        control_msg.data.push_back(0);
-        control_msg.data.push_back(0);
-        control_msg.data.push_back(0);
-        control_msg.data.push_back(0);
-        control_msg.data.push_back(0);
-        control_msg.data.push_back(0);
-        // control_msg.data.push_back(pid_output.roll >> 8);
-        // control_msg.data.push_back(pid_output.roll);
-        // control_msg.data.push_back(pid_output.pitch >> 8);
-        // control_msg.data.push_back(pid_output.pitch);
-        // control_msg.data.push_back(pid_output.yaw >> 8);
-        // control_msg.data.push_back(pid_output.yaw);
+        // control_msg.data.push_back(0);
+        // control_msg.data.push_back(0);
+        // control_msg.data.push_back(0);
+        // control_msg.data.push_back(0);
+        // control_msg.data.push_back(0);
+        // control_msg.data.push_back(0);
+        control_msg.data.push_back(pid_output.roll >> 8);
+        control_msg.data.push_back(pid_output.roll);
+        control_msg.data.push_back(pid_output.pitch >> 8);
+        control_msg.data.push_back(pid_output.pitch);
+        control_msg.data.push_back(pid_output.yaw >> 8);
+        control_msg.data.push_back(pid_output.yaw);
         control_msg.header.stamp = ros::Time::now();
         to_mav_pub.publish(control_msg);
 
         //DEBUG CODE
-        if(/*mav_time_stamp.toNSec() != 0 &&*/ vicon_time_stamp.toNSec() != 0){
-            count ++;
-            time_elapse_sum_mav += (control_msg.header.stamp - mav_time_stamp).toSec();
+        if(vicon_receive_flag){
+            count_vicon ++;
             time_elapse_sum_vicon += (control_msg.header.stamp - vicon_time_stamp).toSec();
             
-            if(count % 200 == 0){
-                ROS_INFO_STREAM("AVG DELAY Vicon: " << time_elapse_sum_vicon / count);
-        }
-        }
+            if(count_vicon == 200){
+                ROS_INFO_STREAM("AVG DELAY Vicon: " << time_elapse_sum_vicon / count_vicon * 1000 << " ms");
+                time_elapse_sum_vicon = 0.0;
+                count_vicon = 0;
 
+            }
+        }
+        if(mav_receive_flag){
+            count_mav ++;
+            time_elapse_sum_mav += (control_msg.header.stamp - mav_time_stamp).toSec();
+            
+            if(count_mav == 200){
+                ROS_INFO_STREAM("AVG DELAY MAV: " << time_elapse_sum_mav / count_mav * 1000 << " ms");
+                time_elapse_sum_mav = 0.0;
+                count_mav = 0;
+            }
+        }
+        
+        // Check the delay for specific frame
+        last_sent_check_sum.push(control_msg.data[0] + control_msg.data[1] +
+                                control_msg.data[2] + control_msg.data[3] +
+                                control_msg.data[4] + control_msg.data[5] +
+                                control_msg.data[6] + control_msg.data[7] + 0x59);
+        last_sent_stamp.push(control_msg.header.stamp.toNSec());
         
         //DEBUG CODE
         tmp.x = pid_output.roll;
@@ -175,6 +229,8 @@ int main(int argc, char **argv)
         actual_rate_pub.publish(tmp);        
         r.sleep();
     }
+
+    aspin.stop();
     
     return 0;
 }
