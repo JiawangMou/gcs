@@ -4,34 +4,34 @@
 #include "math.h"
 
 /********************************************************************************	 
- * ±¾³ÌĞòÖ»¹©Ñ§Ï°Ê¹ÓÃ£¬Î´¾­×÷ÕßĞí¿É£¬²»µÃÓÃÓÚÆäËüÈÎºÎÓÃÍ¾
+ * æœ¬ç¨‹åºåªä¾›å­¦ä¹ ä½¿ç”¨ï¼Œæœªç»ä½œè€…è®¸å¯ï¼Œä¸å¾—ç”¨äºå…¶å®ƒä»»ä½•ç”¨é€”
  * ALIENTEK MiniFly
- * Î»ÖÃPID¿ØÖÆ´úÂë	
- * ÕıµãÔ­×Ó@ALIENTEK
- * ¼¼ÊõÂÛÌ³:www.openedv.com
- * ´´½¨ÈÕÆÚ:2017/5/12
- * °æ±¾£ºV1.3
- * °æÈ¨ËùÓĞ£¬µÁ°æ±Ø¾¿¡£
- * Copyright(C) ¹ãÖİÊĞĞÇÒíµç×Ó¿Æ¼¼ÓĞÏŞ¹«Ë¾ 2014-2024
+ * ä½ç½®PIDæ§åˆ¶ä»£ç 	
+ * æ­£ç‚¹åŸå­@ALIENTEK
+ * æŠ€æœ¯è®ºå›:www.openedv.com
+ * åˆ›å»ºæ—¥æœŸ:2017/5/12
+ * ç‰ˆæœ¬ï¼šV1.3
+ * ç‰ˆæƒæ‰€æœ‰ï¼Œç›—ç‰ˆå¿…ç©¶ã€‚
+ * Copyright(C) å¹¿å·å¸‚æ˜Ÿç¿¼ç”µå­ç§‘æŠ€æœ‰é™å…¬å¸ 2014-2024
  * All rights reserved
  *
- * ĞŞ¸ÄËµÃ÷:
- * °æ±¾V1.3 Ë®Æ½¶¨µãPIDÊä³ö½Ï´ó£¬ËùÒÔÔÚÎ»ÖÃ»·Êä³öÉèÖÃ0.1µÄÏµÊı£¬
-	ËÙÂÊ»·Êä³öÉèÖÃ0.15ÏµÊı£¬´Ó¶øÔö¼ÓPIDµÄ¿Éµ÷ĞÔ¡£
+ * ä¿®æ”¹è¯´æ˜:
+ * ç‰ˆæœ¬V1.3 æ°´å¹³å®šç‚¹PIDè¾“å‡ºè¾ƒå¤§ï¼Œæ‰€ä»¥åœ¨ä½ç½®ç¯è¾“å‡ºè®¾ç½®0.1çš„ç³»æ•°ï¼Œ
+	é€Ÿç‡ç¯è¾“å‡ºè®¾ç½®0.15ç³»æ•°ï¼Œä»è€Œå¢åŠ PIDçš„å¯è°ƒæ€§ã€‚
 ********************************************************************************/
 
-#define THRUST_BASE  		(20000)	/*»ù´¡ÓÍÃÅÖµ*/
+#define THRUST_BASE  		(22000)	/*åŸºç¡€æ²¹é—¨å€¼*/
 
-#define PIDVX_OUTPUT_LIMIT	120.0f	//ROLLÏŞ·ù	(µ¥Î»¡ã´ø0.15µÄÏµÊı)
-#define PIDVY_OUTPUT_LIMIT	120.0f 	//PITCHÏŞ·ù	(µ¥Î»¡ã´ø0.15µÄÏµÊı)
-#define PIDVZ_OUTPUT_LIMIT	(40000)	/*PID VZÏŞ·ù*/
+#define PIDVX_OUTPUT_LIMIT	120.0f	//ROLLé™å¹…	(å•ä½Â°å¸¦0.15çš„ç³»æ•°)
+#define PIDVY_OUTPUT_LIMIT	120.0f 	//PITCHé™å¹…	(å•ä½Â°å¸¦0.15çš„ç³»æ•°)
+#define PIDVZ_OUTPUT_LIMIT	(40000)	/*PID VZé™å¹…*/
 
-#define PIDX_OUTPUT_LIMIT	1200.0f	//XÖáËÙ¶ÈÏŞ·ù(µ¥Î»cm/s ´ø0.1µÄÏµÊı)
-#define PIDY_OUTPUT_LIMIT	1200.0f	//YÖáËÙ¶ÈÏŞ·ù(µ¥Î»cm/s ´ø0.1µÄÏµÊı)
-#define PIDZ_OUTPUT_LIMIT	120.0f	//ZÖáËÙ¶ÈÏŞ·ù(µ¥Î»cm/s)
+#define PIDX_OUTPUT_LIMIT	1200.0f	//Xè½´é€Ÿåº¦é™å¹…(å•ä½cm/s å¸¦0.1çš„ç³»æ•°)
+#define PIDY_OUTPUT_LIMIT	1200.0f	//Yè½´é€Ÿåº¦é™å¹…(å•ä½cm/s å¸¦0.1çš„ç³»æ•°)
+#define PIDZ_OUTPUT_LIMIT	120.0f	//Zè½´é€Ÿåº¦é™å¹…(å•ä½cm/s)
 
 
-static float thrustLpf = THRUST_BASE;	/*ÓÍÃÅµÍÍ¨*/
+static float thrustLpf = THRUST_BASE;	/*æ²¹é—¨ä½é€š*/
 
 PidObject pidVX;
 PidObject pidVY;
@@ -55,19 +55,19 @@ void positionControlInit(pidInit_t vX, pidInit_t vY, pidInit_t vZ,
 						 pidInit_t X, pidInit_t Y, pidInit_t Z,
 						 float velocityPidDt, float posPidDt)
 {
-	pidInit(&pidVX, 0, vX, velocityPidDt);	/*vx PID³õÊ¼»¯*/
-	pidInit(&pidVY, 0, vY, velocityPidDt);	/*vy PID³õÊ¼»¯*/
-	pidInit(&pidVZ, 0, vZ, velocityPidDt);	/*vz PID³õÊ¼»¯*/
-	pidSetOutputLimit(&pidVX, PIDVX_OUTPUT_LIMIT);		/* Êä³öÏŞ·ù */
-	pidSetOutputLimit(&pidVY, PIDVY_OUTPUT_LIMIT);		/* Êä³öÏŞ·ù */
-	pidSetOutputLimit(&pidVZ, PIDVZ_OUTPUT_LIMIT);		/* Êä³öÏŞ·ù */
+	pidInit(&pidVX, 0, vX, velocityPidDt);	/*vx PIDåˆå§‹åŒ–*/
+	pidInit(&pidVY, 0, vY, velocityPidDt);	/*vy PIDåˆå§‹åŒ–*/
+	pidInit(&pidVZ, 0, vZ, velocityPidDt);	/*vz PIDåˆå§‹åŒ–*/
+	pidSetOutputLimit(&pidVX, PIDVX_OUTPUT_LIMIT);		/* è¾“å‡ºé™å¹… */
+	pidSetOutputLimit(&pidVY, PIDVY_OUTPUT_LIMIT);		/* è¾“å‡ºé™å¹… */
+	pidSetOutputLimit(&pidVZ, PIDVZ_OUTPUT_LIMIT);		/* è¾“å‡ºé™å¹… */
 	
-	pidInit(&pidX, 0, X, posPidDt);			/*x PID³õÊ¼»¯*/
-	pidInit(&pidY, 0, Y, posPidDt);			/*y PID³õÊ¼»¯*/
-	pidInit(&pidZ, 0, Z, posPidDt);			/*z PID³õÊ¼»¯*/
-	pidSetOutputLimit(&pidX, PIDX_OUTPUT_LIMIT);		/* Êä³öÏŞ·ù */
-	pidSetOutputLimit(&pidY, PIDY_OUTPUT_LIMIT);		/* Êä³öÏŞ·ù */
-	pidSetOutputLimit(&pidZ, PIDZ_OUTPUT_LIMIT);		/* Êä³öÏŞ·ù */
+	pidInit(&pidX, 0, X, posPidDt);			/*x PIDåˆå§‹åŒ–*/
+	pidInit(&pidY, 0, Y, posPidDt);			/*y PIDåˆå§‹åŒ–*/
+	pidInit(&pidZ, 0, Z, posPidDt);			/*z PIDåˆå§‹åŒ–*/
+	pidSetOutputLimit(&pidX, PIDX_OUTPUT_LIMIT);		/* è¾“å‡ºé™å¹… */
+	pidSetOutputLimit(&pidY, PIDY_OUTPUT_LIMIT);		/* è¾“å‡ºé™å¹… */
+	pidSetOutputLimit(&pidZ, PIDZ_OUTPUT_LIMIT);		/* è¾“å‡ºé™å¹… */
 }
 
 static void velocityController(float* thrust, attitude_t *attitude, setpoint_t *setpoint, const state_t *state)                                                         
@@ -76,16 +76,16 @@ static void velocityController(float* thrust, attitude_t *attitude, setpoint_t *
 	
 	// Roll and Pitch
 	attitude->pitch = 0.15f * pidUpdate(&pidVX, setpoint->velocity.x - state->velocity.x);
-	attitude->roll = 0.15f * pidUpdate(&pidVY, setpoint->velocity.y - state->velocity.y);
+	attitude->roll = - 0.15f * pidUpdate(&pidVY, setpoint->velocity.y - state->velocity.y);
 	
 	// Thrust
 	float thrustRaw = pidUpdate(&pidVZ, setpoint->velocity.z - state->velocity.z);
 	
-	*thrust = constrainf(thrustRaw + THRUST_BASE, 1000, 60000);	/*ÓÍÃÅÏŞ·ù*/
+	*thrust = constrainf(thrustRaw + THRUST_BASE, 1000, 60000);	/*æ²¹é—¨é™å¹…*/
 	
 	thrustLpf += (*thrust - thrustLpf) * 0.003f;
 	
-	// if(getCommanderKeyFlight())	/*¶¨¸ß·ÉĞĞ×´Ì¬*/
+	// if(getCommanderKeyFlight())	/*å®šé«˜é£è¡ŒçŠ¶æ€*/
 	// {
 	// 	if(fabs(state->acc.z) < 35.f)
 	// 	{
@@ -93,14 +93,14 @@ static void velocityController(float* thrust, attitude_t *attitude, setpoint_t *
 	// 		if(altholdCount > 1000)
 	// 		{
 	// 			altholdCount = 0;
-	// 			if(fabs(configParam.thrustBase - thrustLpf) > 1000.f)	/*¸üĞÂ»ù´¡ÓÍÃÅÖµ*/
+	// 			if(fabs(configParam.thrustBase - thrustLpf) > 1000.f)	/*æ›´æ–°åŸºç¡€æ²¹é—¨å€¼*/
 	// 				configParam.thrustBase = thrustLpf;
 	// 		}
 	// 	}else
 	// 	{
 	// 		altholdCount = 0;
 	// 	}
-	// }else if(getCommanderKeyland() == false)	/*½µÂäÍê³É£¬ÓÍÃÅÇåÁã*/
+	// }else if(getCommanderKeyland() == false)	/*é™è½å®Œæˆï¼Œæ²¹é—¨æ¸…é›¶*/
 	// {
 	// 	*thrust = 0;
 	// }
@@ -116,7 +116,7 @@ void positionController(float* thrust, attitude_t *attitude, setpoint_t *setpoin
 	velocityController(thrust, attitude, setpoint, state);
 }
 
-/*»ñÈ¡¶¨¸ßÓÍÃÅÖµ*/
+/*è·å–å®šé«˜æ²¹é—¨å€¼*/
 float getAltholdThrust(void)
 {
 	return thrustLpf;

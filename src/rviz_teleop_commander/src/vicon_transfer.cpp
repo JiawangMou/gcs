@@ -104,6 +104,9 @@ void mavReceiveCallback(const mav_comm_driver::MFPUnified::ConstPtr& msg){
         }
     
         if(!last_sent_check_sum.empty()){
+            if((msg -> header.stamp.toNSec() - last_sent_stamp.front()) / 1000000.0 > 50.0){
+                ROS_WARN("MAV RF Delay High.");
+            }
             time_elapse_check_sum += (msg -> header.stamp.toNSec() - last_sent_stamp.front()) / 1000000.0;
             mav_check_count ++;
             last_sent_check_sum.pop();
@@ -136,16 +139,16 @@ int main(int argc, char **argv)
     angle_yaw.kp = 20.0; angle_yaw.kd = 1.5; angle_yaw.ki = 0.0;
 
     //rate PID params
-    rate_roll.kp = 200.0; rate_roll.kd = 6.5; rate_roll.ki = 0.0;
-    rate_pitch.kp = 200.0; rate_pitch.kd = 6.5; rate_pitch.ki = 0.0;
+    rate_roll.kp = 200.0; rate_roll.kd = 8.5; rate_roll.ki = 0.0;
+    rate_pitch.kp = 200.0; rate_pitch.kd = 8.5; rate_pitch.ki = 0.0;
     rate_yaw.kp = 200.0; rate_yaw.kd = 0.0; rate_yaw.ki = 18.5;
 
     //position PID params
     pid_vx.kp = 4.5; pid_vx.kd = 0.0; pid_vx.ki = 0.0;
     pid_vy.kp = 4.5; pid_vy.kd = 0.0; pid_vy.ki = 0.0;
     pid_vz.kp = 100.0; pid_vz.kd = 10.0; pid_vz.ki = 150.0;
-    pid_x.kp = 4.0; pid_x.kd = 0.6; pid_x.ki = 0.0;
-    pid_y.kp = 4.0; pid_y.kd = 0.6; pid_y.ki = 0.0;
+    pid_x.kp = 30.0; pid_x.kd = 0.6; pid_x.ki = 0.0;
+    pid_y.kp = 30.0; pid_y.kd = 0.6; pid_y.ki = 0.0;
     pid_z.kp = 6.0; pid_z.kd = 4.5; pid_z.ki = 0.0;
 
     //Attitude PID control init
@@ -191,6 +194,7 @@ int main(int argc, char **argv)
     int count_mav = 0;
     double time_elapse_sum_vicon = 0.0;
     double time_elapse_sum_mav = 0.0;
+    int16_t thrust_tmp;
 
     ros::AsyncSpinner aspin(4);
     aspin.start();
@@ -200,6 +204,10 @@ int main(int argc, char **argv)
         if(vicon_receive_flag && mav_receive_flag){
             //PID cal
             positionController(&(pid_output.thrust), &desired_angle, &setpoint, &actual_state);
+            desired_angle.pitch += 0.8;
+            desired_angle.roll -= 3.0;
+            // desired_angle.yaw = 0.0;
+            // ROS_INFO("Thrust:%f", pid_output.thrust);
             attitudeAnglePID(&actual_angle, &desired_angle, &desired_rate);
             attitudeRatePID(&actual_rate, &desired_rate, &pid_output);
         }
@@ -207,10 +215,10 @@ int main(int argc, char **argv)
 
         //publish
         control_msg.msg_id = 0x16;
-        control_msg.length = 6;
+        control_msg.length = 8;
         control_msg.data.clear();
         control_msg.data.push_back(0x16);
-        control_msg.data.push_back(6);
+        control_msg.data.push_back(8);
         // control_msg.data.push_back(0);
         // control_msg.data.push_back(0);
         // control_msg.data.push_back(0);
@@ -223,6 +231,9 @@ int main(int argc, char **argv)
         control_msg.data.push_back(pid_output.pitch);
         control_msg.data.push_back(pid_output.yaw >> 8);
         control_msg.data.push_back(pid_output.yaw);
+        thrust_tmp = (int16_t)pid_output.thrust - 20000;
+        control_msg.data.push_back(thrust_tmp >> 8);
+        control_msg.data.push_back(thrust_tmp);
         control_msg.header.stamp = ros::Time::now();
         to_mav_pub.publish(control_msg);
 
@@ -253,7 +264,8 @@ int main(int argc, char **argv)
         last_sent_check_sum.push(control_msg.data[0] + control_msg.data[1] +
                                 control_msg.data[2] + control_msg.data[3] +
                                 control_msg.data[4] + control_msg.data[5] +
-                                control_msg.data[6] + control_msg.data[7] + 0x59);
+                                control_msg.data[6] + control_msg.data[7] +
+                                control_msg.data[8] + control_msg.data[9] + 0x59);
         last_sent_stamp.push(control_msg.header.stamp.toNSec());
         
         //DEBUG CODE
@@ -261,17 +273,17 @@ int main(int argc, char **argv)
         tmp.y = pid_output.pitch;
         tmp.z = pid_output.yaw;
         pid_int_pub.publish(tmp);
-        tmp.x = desired_rate.roll;
-        tmp.y = desired_rate.pitch;
-        tmp.z = desired_rate.yaw;
+        tmp.x = desired_angle.roll;
+        tmp.y = desired_angle.pitch;
+        tmp.z = desired_angle.yaw;
         pid_ext_pub.publish(tmp);
         tmp.x = actual_angle.roll;
         tmp.y = actual_angle.pitch;
         tmp.z = actual_angle.yaw;
         actual_angle_pub.publish(tmp);
-        tmp.x = actual_rate.roll;
-        tmp.y = actual_rate.pitch;
-        tmp.z = actual_rate.yaw;
+        tmp.x = actual_state.velocity.x;
+        tmp.y = actual_state.velocity.y;
+        tmp.z = actual_state.velocity.z;
         actual_rate_pub.publish(tmp);        
         r.sleep();
     }
