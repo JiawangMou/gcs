@@ -15,6 +15,7 @@
 extern "C" {
 #endif
 #include "attitude_pid.h"
+#include "position_pid.h"
 #ifdef __cplusplus
 }
 #endif
@@ -24,14 +25,20 @@ extern "C" {
 #define VICON_FREQ 300.0
 #define CONTROL_FREQ 200.0
 #define ANGLE_FILTER_STOP_FREQ 60.0
+#define V_FILTER_STOP_FREQ 50.0
 
 ros::Publisher to_mav_pub;
 static attitude_t actual_angle;
 static attitude_t desired_angle;
 static attitude_t actual_rate;
 static attitude_t desired_rate;
+static state_t actual_state;
+static setpoint_t setpoint;
 static control_t pid_output;
 static Sensor::BiquadFilter angle_roll_filter, angle_pitch_filter, angle_yaw_filter;
+static Sensor::BiquadFilter v_x_filter, v_y_filter, v_z_filter;
+
+//Delay Estimate
 static ros::Time vicon_time_stamp;
 static ros::Time mav_time_stamp;
 static std::queue<uint64_t> last_sent_stamp;
@@ -56,6 +63,22 @@ void viconCallback(const geometry_msgs::TransformStamped::ConstPtr& msg){
     actual_angle.pitch = angle_pitch_filter.biquadFilterApply(pitch * RAD2DEG);
     actual_angle.roll = angle_roll_filter.biquadFilterApply(roll * RAD2DEG);
     actual_angle.yaw = angle_yaw_filter.biquadFilterApply(yaw * RAD2DEG);
+
+    if(!vicon_receive_flag){    //first time to determine the position to maintain
+        setpoint.position.x = msg -> transform.translation.x;
+        setpoint.position.y = msg -> transform.translation.y;
+        setpoint.position.z = msg -> transform.translation.z + 0.5;
+    }
+
+    if(vicon_receive_flag){
+        actual_state.velocity.x = v_x_filter.biquadFilterApply((msg -> transform.translation.x - actual_state.position.x) * VICON_FREQ);
+        actual_state.velocity.y = v_y_filter.biquadFilterApply((msg -> transform.translation.y - actual_state.position.y) * VICON_FREQ);
+        actual_state.velocity.z = v_z_filter.biquadFilterApply((msg -> transform.translation.z - actual_state.position.z) * VICON_FREQ);
+    }
+
+    actual_state.position.x = msg -> transform.translation.x;
+    actual_state.position.y = msg -> transform.translation.y;
+    actual_state.position.z = msg -> transform.translation.z;
     vicon_time_stamp = msg -> header.stamp;
 
     vicon_receive_flag = true;
@@ -105,6 +128,7 @@ int main(int argc, char **argv)
 
     pidInit_t angle_roll, angle_pitch, angle_yaw;
     pidInit_t rate_roll, rate_pitch, rate_yaw;
+    pidInit_t pid_vx, pid_vy, pid_vz, pid_x, pid_y, pid_z;
 
     //angle PID params
     angle_roll.kp = 8.0; angle_roll.kd = 0.0; angle_roll.ki = 0.0;
@@ -116,15 +140,33 @@ int main(int argc, char **argv)
     rate_pitch.kp = 200.0; rate_pitch.kd = 6.5; rate_pitch.ki = 0.0;
     rate_yaw.kp = 200.0; rate_yaw.kd = 0.0; rate_yaw.ki = 18.5;
 
-    //PID control init
+    //position PID params
+    pid_vx.kp = 0.0; pid_vx.kd = 0.0; pid_vx.ki = 0.0;
+    pid_vy.kp = 0.0; pid_vy.kd = 0.0; pid_vy.ki = 0.0;
+    pid_vz.kp = 0.0; pid_vz.kd = 0.0; pid_vz.ki = 0.0;
+    pid_x.kp = 0.0; pid_x.kd = 0.0; pid_x.ki = 0.0;
+    pid_y.kp = 0.0; pid_y.kd = 0.0; pid_y.ki = 0.0;
+    pid_z.kp = 0.0; pid_z.kd = 0.0; pid_z.ki = 0.0;
+
+    //Attitude PID control init
     attitudeControlInit(angle_roll, angle_pitch, angle_yaw,
                         rate_roll, rate_pitch, rate_yaw,
+                        1.0 / CONTROL_FREQ, 1.0 / CONTROL_FREQ);
+
+    // Position PID control init
+    positionControlInit(pid_vx, pid_vy, pid_vz,
+                        pid_x, pid_y, pid_z,
                         1.0 / CONTROL_FREQ, 1.0 / CONTROL_FREQ);
     
     // Angle Filter Init
     angle_roll_filter.biquadFilterInitLPF(ANGLE_FILTER_STOP_FREQ, 1.0 / VICON_FREQ);
     angle_pitch_filter.biquadFilterInitLPF(ANGLE_FILTER_STOP_FREQ, 1.0 / VICON_FREQ);
     angle_yaw_filter.biquadFilterInitLPF(ANGLE_FILTER_STOP_FREQ, 1.0 / VICON_FREQ);
+
+    // Velocity Filter Init
+    v_x_filter.biquadFilterInitLPF(V_FILTER_STOP_FREQ, 1.0 / VICON_FREQ);
+    v_y_filter.biquadFilterInitLPF(V_FILTER_STOP_FREQ, 1.0 / VICON_FREQ);
+    v_z_filter.biquadFilterInitLPF(V_FILTER_STOP_FREQ, 1.0 / VICON_FREQ);
     
     //ROS publisher subscriber init
     to_mav_pub = n.advertise<mav_comm_driver::MFPUnified>("/mav_download", 100);
@@ -138,9 +180,9 @@ int main(int argc, char **argv)
     ros::Publisher actual_rate_pub = n.advertise<geometry_msgs::Vector3>("/debug_rate", 100);
 
     // Maintain level
-    desired_angle.pitch = 0.0;
-    desired_angle.roll = 0.0;
-    desired_angle.yaw = 0.0;
+    // desired_angle.pitch = 0.0;
+    // desired_angle.roll = 0.0;
+    // desired_angle.yaw = 0.0;
     
     ros::Rate r(CONTROL_FREQ);
     mav_comm_driver::MFPUnified control_msg;
@@ -155,9 +197,13 @@ int main(int argc, char **argv)
 
     while(ros::ok()){
 
-        //PID cal
-        attitudeAnglePID(&actual_angle, &desired_angle, &desired_rate);
-        attitudeRatePID(&actual_rate, &desired_rate, &pid_output);
+        if(vicon_receive_flag && mav_receive_flag){
+            //PID cal
+            positionController(&(pid_output.thrust), &desired_angle, &setpoint, &actual_state);
+            attitudeAnglePID(&actual_angle, &desired_angle, &desired_rate);
+            attitudeRatePID(&actual_rate, &desired_rate, &pid_output);
+        }
+
 
         //publish
         control_msg.msg_id = 0x16;
@@ -220,12 +266,12 @@ int main(int argc, char **argv)
         tmp.z = desired_rate.yaw;
         pid_ext_pub.publish(tmp);
         tmp.x = actual_angle.roll;
-        tmp.x = actual_angle.pitch;
-        tmp.x = actual_angle.yaw;
+        tmp.y = actual_angle.pitch;
+        tmp.z = actual_angle.yaw;
         actual_angle_pub.publish(tmp);
         tmp.x = actual_rate.roll;
-        tmp.x = actual_rate.pitch;
-        tmp.x = actual_rate.yaw;
+        tmp.y = actual_rate.pitch;
+        tmp.z = actual_rate.yaw;
         actual_rate_pub.publish(tmp);        
         r.sleep();
     }

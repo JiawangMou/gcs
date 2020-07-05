@@ -59,6 +59,33 @@ typedef struct
 } pidParamPos_t;
 
 
+struct vec3_s
+{
+	float x;
+	float y;
+	float z;
+};
+
+typedef struct vec3_s point_t;
+typedef struct vec3_s velocity_t;
+typedef struct vec3_s acc_t;
+
+typedef struct
+{
+	attitude_t attitude;		// deg	
+	attitude_t attitudeRate;	// deg/s
+	point_t position;         	// m
+	velocity_t velocity;      	// m/s
+	float thrust;
+} setpoint_t;
+
+typedef struct
+{
+	attitude_t attitude;
+	point_t position;
+	velocity_t velocity;
+} state_t;
+
 #define RATE_5_HZ		5
 #define RATE_10_HZ		10
 #define RATE_25_HZ		25
