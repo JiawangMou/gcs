@@ -141,12 +141,12 @@ int main(int argc, char **argv)
     rate_yaw.kp = 200.0; rate_yaw.kd = 0.0; rate_yaw.ki = 18.5;
 
     //position PID params
-    pid_vx.kp = 0.0; pid_vx.kd = 0.0; pid_vx.ki = 0.0;
-    pid_vy.kp = 0.0; pid_vy.kd = 0.0; pid_vy.ki = 0.0;
-    pid_vz.kp = 0.0; pid_vz.kd = 0.0; pid_vz.ki = 0.0;
-    pid_x.kp = 0.0; pid_x.kd = 0.0; pid_x.ki = 0.0;
-    pid_y.kp = 0.0; pid_y.kd = 0.0; pid_y.ki = 0.0;
-    pid_z.kp = 0.0; pid_z.kd = 0.0; pid_z.ki = 0.0;
+    pid_vx.kp = 4.5; pid_vx.kd = 0.0; pid_vx.ki = 0.0;
+    pid_vy.kp = 4.5; pid_vy.kd = 0.0; pid_vy.ki = 0.0;
+    pid_vz.kp = 100.0; pid_vz.kd = 10.0; pid_vz.ki = 150.0;
+    pid_x.kp = 4.0; pid_x.kd = 0.6; pid_x.ki = 0.0;
+    pid_y.kp = 4.0; pid_y.kd = 0.6; pid_y.ki = 0.0;
+    pid_z.kp = 6.0; pid_z.kd = 4.5; pid_z.ki = 0.0;
 
     //Attitude PID control init
     attitudeControlInit(angle_roll, angle_pitch, angle_yaw,

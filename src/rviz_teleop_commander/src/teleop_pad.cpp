@@ -683,6 +683,32 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             setPanelValues();
         break;
 
+        case(mav_comm_driver::MFPUnified::UP_PID3):
+            //0: x, 1: y, 2:z
+            pid_vel_set_[2][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
+            pid_vel_set_[2][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
+            pid_vel_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_pos_set_[2][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
+            pid_pos_set_[2][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
+            pid_pos_set_[2][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_vel_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
+            pid_vel_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
+            pid_vel_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+
+            ROS_INFO_STREAM("VZ: P:" << pid_vel_set_[2][0] << "I:" << pid_vel_set_[2][1] << "D:" << pid_vel_set_[2][2]);
+            ROS_INFO_STREAM("VX: P:" << pid_vel_set_[0][0] << "I:" << pid_vel_set_[0][1] << "D:" << pid_vel_set_[0][2]);
+            ROS_INFO_STREAM("PZ: P:" << pid_pos_set_[2][0] << "I:" << pid_pos_set_[2][1] << "D:" << pid_pos_set_[2][2]);
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_PID4):
+            //0: x, 1: y, 2:z
+            pid_pos_set_[0][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
+            pid_pos_set_[0][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
+            pid_pos_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            
+            ROS_INFO_STREAM("PX: P:" << pid_pos_set_[0][0] << "I:" << pid_pos_set_[0][1] << "D:" << pid_pos_set_[0][2]);
+        break;
+
     }
 	
 

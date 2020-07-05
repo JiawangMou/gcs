@@ -300,7 +300,8 @@ protected:
     uint8_t pid_int_uplimit_[3];
     uint8_t pid_int_lowlimit_[3];
     uint8_t pid_id_set_;
-
+    float pid_vel_set_[3][3];   //0:x 1:y 2:z
+    float pid_pos_set_[3][3];   //0:p 1:i 2:d
 
     // ROS节点句柄
     ros::NodeHandle nh_;

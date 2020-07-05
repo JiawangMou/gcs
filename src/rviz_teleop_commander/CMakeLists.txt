@@ -119,6 +119,7 @@ add_dependencies(
 add_executable(vicon_transfer
   src/vicon_transfer.cpp
   extlib/attitude_pid.c
+  extlib/position_pid.c
   extlib/pid.c
   )
 target_link_libraries(vicon_transfer
