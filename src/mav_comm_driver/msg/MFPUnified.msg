@@ -6,6 +6,7 @@ uint8[] data    # include id , length , data (not include the frame head AAAF/AA
 # frame id presets
 uint8 UP_STATUS = 1     # 0x01
 uint8 UP_SENSER = 2     # 0x02
+uint8 UP_RCDATA = 3     # 0x03
 uint8 UP_CHECK = 239    # 0xEF
 
 uint8 UP_PID1 = 16      # 0x10

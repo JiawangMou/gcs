@@ -35,6 +35,9 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     throttle_2_pwm_set_ = 0;
 #endif
 
+    throttle_joystick_ = 0;
+    pitch_joystick_ = roll_joystick_ = yaw_joystick_ = 0;
+
     uint i, j;
     for(i = 0; i < 3; i ++){
         for(j = 0; j < 3; j ++){
@@ -243,12 +246,11 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     para_menu -> addWidget(write_flash_checkbox_);
 
     mode_sel_combo_ = new QComboBox();
-    mode_sel_combo_ -> addItem("故障模式", 0);
-    mode_sel_combo_ -> addItem("开始模式", 1);
-    mode_sel_combo_ -> addItem("手动模式", 2);
-    mode_sel_combo_ -> addItem("飞行模式", 3);
-    mode_sel_combo_ -> addItem("调参模式", 4);
-    mode_sel_combo_ -> addItem("Vicon测试模式", 5);
+    mode_sel_combo_ -> addItem("-", 0);
+    mode_sel_combo_ -> addItem("舵机/电机调试模式", 1);
+    mode_sel_combo_ -> addItem("飞行模式", 2);
+    mode_sel_combo_ -> addItem("调参模式", 3);
+    mode_sel_combo_ -> addItem("Vicon测试模式", 4);
     mode_sel_combo_ -> setCurrentIndex(0);
 
     //PWM调节栏(开始模式，手动模式)
@@ -569,7 +571,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     //T=500ms
     connection_check_timer -> start( 500 );
 
-    param_mode_ = fault_mode;
+    param_mode_ = default_mode;
     setParamMode(0);
 
     // system("rosrun joy joy_node&");
@@ -608,8 +610,9 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
     }
 
     mode_id_ = msg -> msg_id;
-    switch(mode_id_){
+    switch(msg -> msg_id){
         case(mav_comm_driver::MFPUnified::UP_STATUS):
+
             cur_roll_ = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
             cur_pitch_ = - (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 100.0;
             cur_yaw_ = - (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
@@ -709,56 +712,27 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             ROS_INFO_STREAM("PX: P:" << pid_pos_set_[0][0] << "I:" << pid_pos_set_[0][1] << "D:" << pid_pos_set_[0][2]);
         break;
 
+        case(mav_comm_driver::MFPUnified::UP_RCDATA):
+            throttle_joystick_ = (uint)(msg -> data[2] << 8 | msg -> data[3]);
+            yaw_joystick_ = (uint)(msg -> data[4] << 8 | msg -> data[5]);
+            roll_joystick_ = (uint)(msg -> data[6] << 8 | msg -> data[7]);
+            pitch_joystick_ = (uint)(msg -> data[2] << 8 | msg -> data[3]);
+
+            flight_control_joysitck_ -> setJoystickPos(pitch_joystick_, roll_joystick_);
+#ifdef TWO_WING
+            throttle_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * THROTTLE_MAX) : 0;
+            throttle_set_spin_ -> setValue(throttle_pwm_set_);
+#endif
+#ifdef FOUR_WING
+            throttle_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * THROTTLE_MAX - 100) : 0;
+            throttle_set_spin_ -> setValue(throttle_pwm_set_);
+            throttle_2_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * (THROTTLE_MAX - 100)) : 0;
+            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+#endif
+        
+
     }
-	
-
 //     mode_id_ = msg -> mode_id;
-
-//     QPalette palette;
-//     switch(mode_id_){
-//         case(mav_comm_driver::MAVStatus::FAULT_MODE):
-//             mode_label_ -> setText("故障模式");
-//             palette.setColor(QPalette::Background, QColor(255, 0, 0));
-//             mode_label_ -> setPalette(palette);
-//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
-//             mode_label_ -> setPalette(palette);
-//             break;
-//         case(mav_comm_driver::MAVStatus::START_MODE):
-//             mode_label_ -> setText("开始模式");
-//             palette.setColor(QPalette::Background, QColor(0, 0, 255));
-//             mode_label_ -> setPalette(palette);
-//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
-//             mode_label_ -> setPalette(palette);
-//             break;
-//         case(mav_comm_driver::MAVStatus::MANUAL_MODE):
-//             mode_label_ -> setText("手动模式");
-//             palette.setColor(QPalette::Background, QColor(0, 100, 100));
-//             mode_label_ -> setPalette(palette);
-//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
-//             mode_label_ -> setPalette(palette);
-//             break;
-//         case(mav_comm_driver::MAVStatus::FLIGHT_MODE):
-//             mode_label_ -> setText("飞行模式");
-//             palette.setColor(QPalette::Background, QColor(0, 255, 0));
-//             mode_label_ -> setPalette(palette);
-//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
-//             mode_label_ -> setPalette(palette);
-//             break; 
-//         case(mav_comm_driver::MAVStatus::TUNING_MODE):
-//             mode_label_ -> setText("调参模式");
-//             palette.setColor(QPalette::Background, QColor(255, 255, 0));
-//             mode_label_ -> setPalette(palette);
-//             palette.setColor(QPalette::WindowText, QColor(Qt::black));
-//             mode_label_ -> setPalette(palette);
-//             break;
-//         default:
-//             mode_label_ -> setText("通讯故障");
-//             palette.setColor(QPalette::Background, QColor(100, 100, 100));
-//             mode_label_ -> setPalette(palette);
-//             palette.setColor(QPalette::WindowText, QColor(Qt::white));
-//             mode_label_ -> setPalette(palette);
-//             return;
-//     }
 
 //     cur_roll_ = msg -> roll_angle;
 //     cur_pitch_ = msg -> pitch_angle;
@@ -1213,25 +1187,12 @@ void FMAVStatusPanel::setParamMode(int index){
     flight_control_joysitck_ -> setVisible(false);
 
     switch(index){
-        case(0):    //FAULT_MODE
-            param_mode_ = fault_mode;
+        case(0):    //DEFAULT_MODE
+            param_mode_ = default_mode;
             break;
 
-        case(1):    //START_MODE
-            param_mode_ = start_mode;
-            boxLayoutVisible(right_servo_set_layout_, true);
-#ifdef TWO_WING
-            boxLayoutVisible(mid_servo_set_layout_, true);
-#endif
-            boxLayoutVisible(left_servo_set_layout_, true);
-            boxLayoutVisible(throttle_set_layout_, true);
-#ifdef FOUR_WING
-            boxLayoutVisible(throttle_2_set_layout_, true);
-#endif
-            break;
-
-        case(2):    //MANUAL MODE
-            param_mode_ = manual_mode;
+        case(1):    //SERVO_DEBUG_MODE
+            param_mode_ = servo_debug_mode;
             boxLayoutVisible(right_servo_set_layout_, true);
 #ifdef TWO_WING
             boxLayoutVisible(mid_servo_set_layout_, true);
@@ -1244,7 +1205,7 @@ void FMAVStatusPanel::setParamMode(int index){
 #endif
             break;
 
-        case(3):    //FLIGHT_MODE
+        case(2):    //FLIGHT_MODE
             param_mode_ = flight_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
@@ -1255,7 +1216,7 @@ void FMAVStatusPanel::setParamMode(int index){
 #endif
             break;
 
-        case(4):    //TUNING MODE
+        case(3):    //TUNING MODE
             param_mode_ = tuning_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             boxLayoutVisible(pid_tuning_layout_, true);
@@ -1265,7 +1226,7 @@ void FMAVStatusPanel::setParamMode(int index){
 #endif
             break;
         
-        case(5):    //VICON TEST MODE
+        case(4):    //VICON TEST MODE
             param_mode_ = vicon_test_mode;
             boxLayoutVisible(vicon_test_layout_, true);
             break;

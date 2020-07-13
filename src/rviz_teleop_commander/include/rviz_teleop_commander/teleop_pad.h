@@ -47,13 +47,6 @@ class QLineEdit;
 namespace rviz_teleop_commander
 {
 
-const uint8_t fault_mode = 0x00;
-const uint8_t start_mode = 0x08;
-const uint8_t manual_mode = 0x10;
-const uint8_t flight_mode = 0x18;
-const uint8_t tuning_mode = 0x38;
-const uint8_t vicon_test_mode = 0x30;
-
 const uint8_t servo_pwm_max = 210;
 const uint8_t servo_pwm_min = 90;
 
@@ -187,6 +180,13 @@ protected:
     //当前参数表模式
     uint8_t param_mode_;
 
+    static const uint8_t default_mode = 0x00;
+    static const uint8_t servo_debug_mode = 0x08;
+    static const uint8_t manual_mode = 0x10;
+    static const uint8_t flight_mode = 0x18;
+    static const uint8_t tuning_mode = 0x38;
+    static const uint8_t vicon_test_mode = 0x30;
+
 
     //开始模式，手动模式的控件
     QHBoxLayout* right_servo_set_layout_;
@@ -288,6 +288,10 @@ protected:
     
     //飞行模式摇杆
     JoystickWidget* flight_control_joysitck_;
+
+    //摇杆存储变量
+    uint throttle_joystick_;
+    uint pitch_joystick_, roll_joystick_, yaw_joystick_;
 
 
     //PID 参数存储变量
