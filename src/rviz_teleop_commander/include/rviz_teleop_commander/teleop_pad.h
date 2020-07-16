@@ -11,6 +11,7 @@
 #include <tf/transform_broadcaster.h>
 #include <sensor_msgs/Joy.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,12 +33,15 @@
 #include <mav_comm_driver/ModeConfig.h>
 #include <mav_comm_driver/MFPUnified.h>
 #include <rviz_teleop_commander/joystick_widget.h>
+
+#include "EllipsoidFit.h"
+#include <Eigen/Dense>
 #endif
 
 #ifdef TWO_WING
     #define THROTTLE_MAX 100
 #else
-    #define THROTTLE_MAX 999
+    #define THROTTLE_MAX 65536
 #endif
 
 #define DEG2RAD (M_PI/180.0)
@@ -47,8 +51,8 @@ class QLineEdit;
 namespace rviz_teleop_commander
 {
 
-const uint8_t servo_pwm_max = 210;
-const uint8_t servo_pwm_min = 90;
+const uint16_t servo_pwm_max = 2100;
+const uint16_t servo_pwm_min = 900;
 
 
 // 所有的plugin都必须是rviz::Panel的子类
@@ -89,6 +93,8 @@ protected Q_SLOTS:
     void viconStartEnd();
     void joystickMove(float x, float y);
     void endMessage();
+    void calibrateMag();
+    void clearCalibrateVisualization();
 
 protected:
     void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
@@ -157,6 +163,7 @@ protected:
     float cur_roll_rate_;
     float cur_pitch_rate_;
     float cur_yaw_rate_;
+    float cur_mag_raw_[3];
     uint8_t cur_mid_servo_pwm_;
     uint8_t cur_left_servo_pwm_;
     uint8_t cur_right_servo_pwm_;
@@ -180,12 +187,13 @@ protected:
     //当前参数表模式
     uint8_t param_mode_;
 
-    static const uint8_t default_mode = 0x00;
-    static const uint8_t servo_debug_mode = 0x08;
-    static const uint8_t manual_mode = 0x10;
-    static const uint8_t flight_mode = 0x18;
-    static const uint8_t tuning_mode = 0x38;
-    static const uint8_t vicon_test_mode = 0x30;
+    static const uint8_t default_mode = 0;
+    static const uint8_t servo_debug_mode = 1;
+    static const uint8_t manual_mode = 7;
+    static const uint8_t sensor_alignment_mode = 2;
+    static const uint8_t flight_mode = 3;
+    static const uint8_t tuning_mode = 4;
+    static const uint8_t vicon_test_mode = 5;
 
 
     //开始模式，手动模式的控件
@@ -223,10 +231,10 @@ protected:
 #endif
 
     //PWM 参数存储变量
-    uint8_t mid_servo_pwm_set_;
-    uint8_t climb_pwm_set_;
-    uint8_t left_servo_pwm_set_;
-    uint8_t right_servo_pwm_set_;
+    uint16_t mid_servo_pwm_set_;
+    uint16_t climb_pwm_set_;
+    uint16_t left_servo_pwm_set_;
+    uint16_t right_servo_pwm_set_;
     uint16_t throttle_pwm_set_;
 #ifdef FOUR_WING
     uint16_t throttle_2_pwm_set_;
@@ -235,6 +243,35 @@ protected:
 #ifdef FOUR_WING
     bool is_throttle_2_enabled_;
 #endif
+
+    //校准界面控件
+    QVBoxLayout* sensor_calib_layout_;
+    QHBoxLayout* sensor_calib_btn_layout_;
+    QPushButton* mag_calib_start_btn_;
+    QPushButton* mag_calib_clear_btn_;
+
+    QLabel* mag_offset_front_label_;
+    QHBoxLayout* mag_offset_layout_;
+    QLabel* mag_offset_x_front_label_;
+    QLineEdit* mag_offset_x_edit_;
+    QLabel* mag_offset_y_front_label_;
+    QLineEdit* mag_offset_y_edit_;
+    QLabel* mag_offset_z_front_label_;
+    QLineEdit* mag_offset_z_edit_;
+
+    QLabel* mag_gain_front_label_;
+    QHBoxLayout* mag_gain_layout_;
+    QLabel* mag_gain_x_front_label_;
+    QLineEdit* mag_gain_x_edit_;
+    QLabel* mag_gain_y_front_label_;
+    QLineEdit* mag_gain_y_edit_;
+    QLabel* mag_gain_z_front_label_;
+    QLineEdit* mag_gain_z_edit_;
+
+    //校准变量
+    double mag_offset_set_[3];  //0:x   1:y   2:z
+    double mag_gain_set_[3];
+
 
     //调参模式的控件
     QVBoxLayout* pid_tuning_layout_;
@@ -311,6 +348,7 @@ protected:
     ros::NodeHandle nh_;
     ros::Publisher vis_pub_;
     ros::Publisher mav_config_pub_;
+    ros::Publisher mag_calib_vis_pub_;
     ros::Subscriber mav_down_sub_;
     ros::Subscriber joystick_sub_;
     ros::Subscriber vicon_sub_;
@@ -328,6 +366,16 @@ protected:
 
     uint mav_down_msg_cnt_;
     uint mav_down_msg_cnt_prev_;
+
+    // Mag Calibration
+    bool is_calibrating_mag;
+    uint mag_data_cnt_;
+    Eigen::VectorXd mag_calib_data_[3];
+    visualization_msgs::MarkerArray mag_calib_vis_msg_;
+    visualization_msgs::Marker mag_calib_vis_pts_;
+    visualization_msgs::Marker mag_calib_vis_ellipsoid_;
+    static const uint MAG_CALIB_REQUIRE_CNT = 600;
+    static const uint MAG_CALIB_POINT_SCALE = 200;
 
 };
 

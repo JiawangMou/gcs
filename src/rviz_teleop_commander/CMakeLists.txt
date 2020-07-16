@@ -35,6 +35,8 @@ find_package(catkin REQUIRED COMPONENTS
  tf
  )
 
+find_package(Eigen3 REQUIRED)
+
 add_message_files(FILES
   PID.msg
 )
@@ -54,6 +56,7 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
   include
   extlib
   )
@@ -83,6 +86,7 @@ qt5_wrap_cpp(
 set(SOURCE_FILES
   src/teleop_pad.cpp
   src/joystick_widget.cpp
+  extlib/EllipsoidFit.cpp
   ${MOC_FILES}
 )
 

@@ -58,6 +58,10 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #endif
     is_vicon_started = false;
     is_displaying_msg = false;
+    is_calibrating_mag = false;
+    mag_calib_data_[0].resize(MAG_CALIB_REQUIRE_CNT);
+    mag_calib_data_[1].resize(MAG_CALIB_REQUIRE_CNT);
+    mag_calib_data_[2].resize(MAG_CALIB_REQUIRE_CNT);
 
     // 标志logo
     std::string logo_img_path;
@@ -246,12 +250,13 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     para_menu -> addWidget(write_flash_checkbox_);
 
     mode_sel_combo_ = new QComboBox();
-    mode_sel_combo_ -> addItem("-", 0);
-    mode_sel_combo_ -> addItem("舵机/电机调试模式", 1);
-    mode_sel_combo_ -> addItem("飞行模式", 2);
-    mode_sel_combo_ -> addItem("调参模式", 3);
-    mode_sel_combo_ -> addItem("Vicon测试模式", 4);
-    mode_sel_combo_ -> setCurrentIndex(0);
+    mode_sel_combo_ -> addItem("-", default_mode);
+    mode_sel_combo_ -> addItem("舵机/电机调试模式", servo_debug_mode);
+    mode_sel_combo_ -> addItem("传感器校准模式", sensor_alignment_mode);
+    mode_sel_combo_ -> addItem("飞行模式", flight_mode);
+    mode_sel_combo_ -> addItem("调参模式", tuning_mode);
+    mode_sel_combo_ -> addItem("Vicon测试模式", vicon_test_mode);
+    mode_sel_combo_ -> setCurrentIndex(default_mode);
 
     //PWM调节栏(开始模式，手动模式)
 #ifdef TWO_WING
@@ -358,6 +363,53 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect(climb_set_spin_, SIGNAL(valueChanged(int)), climb_set_slider_, SLOT(setValue(int)));
     connect(climb_set_slider_, SIGNAL(valueChanged(int)), climb_set_spin_, SLOT(setValue(int)));
 #endif
+
+    //Sensor Alignment Controls
+    sensor_calib_layout_ = new QVBoxLayout();
+
+    sensor_calib_btn_layout_ = new QHBoxLayout();
+    mag_calib_start_btn_ = new QPushButton("校准磁力计");
+    mag_calib_clear_btn_ = new QPushButton("清除预览");
+    sensor_calib_btn_layout_ -> addWidget(mag_calib_start_btn_);
+    sensor_calib_btn_layout_ -> addWidget(mag_calib_clear_btn_);
+    sensor_calib_layout_ -> addLayout(sensor_calib_btn_layout_);
+
+    mag_offset_front_label_ = new QLabel("磁力计偏移量");
+    mag_offset_front_label_ -> setAlignment(Qt::AlignCenter);
+    sensor_calib_layout_ -> addWidget(mag_offset_front_label_);
+    mag_offset_layout_ = new QHBoxLayout();
+    mag_offset_x_front_label_ = new QLabel("X:");
+    mag_offset_x_edit_ = new QLineEdit();
+    mag_offset_y_front_label_ = new QLabel("Y:");
+    mag_offset_y_edit_ = new QLineEdit();
+    mag_offset_z_front_label_ = new QLabel("Z:");
+    mag_offset_z_edit_ = new QLineEdit();
+    mag_offset_layout_ -> addWidget(mag_offset_x_front_label_);
+    mag_offset_layout_ -> addWidget(mag_offset_x_edit_);
+    mag_offset_layout_ -> addWidget(mag_offset_y_front_label_);
+    mag_offset_layout_ -> addWidget(mag_offset_y_edit_);
+    mag_offset_layout_ -> addWidget(mag_offset_z_front_label_);
+    mag_offset_layout_ -> addWidget(mag_offset_z_edit_);
+    sensor_calib_layout_ -> addLayout(mag_offset_layout_);
+
+    mag_gain_front_label_ = new QLabel("磁力计矫正半径");
+    mag_gain_front_label_ -> setAlignment(Qt::AlignCenter);
+    sensor_calib_layout_ -> addWidget(mag_gain_front_label_);
+    mag_gain_layout_ = new QHBoxLayout();
+    mag_gain_x_front_label_ = new QLabel("X:");
+    mag_gain_x_edit_ = new QLineEdit();
+    mag_gain_y_front_label_ = new QLabel("Y:");
+    mag_gain_y_edit_ = new QLineEdit();
+    mag_gain_z_front_label_ = new QLabel("Z:");
+    mag_gain_z_edit_ = new QLineEdit();
+    mag_gain_layout_ -> addWidget(mag_gain_x_front_label_);
+    mag_gain_layout_ -> addWidget(mag_gain_x_edit_);
+    mag_gain_layout_ -> addWidget(mag_gain_y_front_label_);
+    mag_gain_layout_ -> addWidget(mag_gain_y_edit_);
+    mag_gain_layout_ -> addWidget(mag_gain_z_front_label_);
+    mag_gain_layout_ -> addWidget(mag_gain_z_edit_);
+    sensor_calib_layout_ -> addLayout(mag_gain_layout_);
+
 
     //PID Tuning Controls
     pid_tuning_layout_ = new QVBoxLayout();
@@ -534,12 +586,14 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     layout -> addWidget(flight_control_joysitck_);
     layout -> addLayout(pid_tuning_layout_);
     layout -> addLayout(vicon_test_layout_);
+    layout -> addLayout(sensor_calib_layout_);
     layout -> addStretch();
     setLayout( layout );
 
     mav_down_sub_ = nh_.subscribe("/received_data", 10, &FMAVStatusPanel::updateMAVStatus, this);
     vis_pub_ = nh_.advertise< visualization_msgs::Marker>("/mav_vis", 10);
     mav_config_pub_ = nh_.advertise<mav_comm_driver::MFPUnified>("/mav_download", 10);
+    mag_calib_vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/mag_calib_vis",10);
 
     //飞行模式手柄下发计时器
     joystick_send_timer_ = new QTimer( this );
@@ -566,20 +620,21 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect( vicon_topic_refresh_btn_,  SIGNAL( clicked() ), this, SLOT( refreshViconTopicList() ));
     connect( vicon_start_btn_,  SIGNAL( clicked() ), this, SLOT( viconStartEnd() ));
     connect( flight_control_joysitck_, SIGNAL(JoystickValueChanged(float,float)), this, SLOT(joystickMove(float, float)) );
-    
+    connect( mag_calib_start_btn_,  SIGNAL( clicked() ), this, SLOT( calibrateMag() ));
+    connect( mag_calib_clear_btn_,  SIGNAL( clicked() ), this, SLOT( clearCalibrateVisualization() ));
 
     //T=500ms
     connection_check_timer -> start( 500 );
 
     param_mode_ = default_mode;
-    setParamMode(0);
+    setParamMode(default_mode);
 
     // system("rosrun joy joy_node&");
 
 }
 
 FMAVStatusPanel::~FMAVStatusPanel(){
-    
+
     // system("rosnode kill /joy_node");
     //pclose(joystick_);
 }
@@ -642,6 +697,9 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             cur_roll_rate_ = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
             cur_pitch_rate_ = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
             cur_yaw_rate_ = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            cur_mag_raw_[0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]);
+            cur_mag_raw_[1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]);
+            cur_mag_raw_[2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]);
 
             // update display values
             sprintf(numstr, "%.2f", cur_roll_rate_);
@@ -650,6 +708,62 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pitch_rate_label_ -> setText(numstr);
             sprintf(numstr, "%.2f", cur_yaw_rate_);
             yaw_rate_label_ -> setText(numstr);
+
+            if(is_calibrating_mag){
+                
+                mag_calib_data_[0](mag_data_cnt_) = cur_mag_raw_[0];
+                mag_calib_data_[1](mag_data_cnt_) = cur_mag_raw_[1];
+                mag_calib_data_[2](mag_data_cnt_) = cur_mag_raw_[2];
+                mag_data_cnt_ ++;
+
+                geometry_msgs::Point mag_pt;
+                mag_pt.x = cur_mag_raw_[0] / MAG_CALIB_POINT_SCALE;
+                mag_pt.y = cur_mag_raw_[1] / MAG_CALIB_POINT_SCALE;
+                mag_pt.z = cur_mag_raw_[2] / MAG_CALIB_POINT_SCALE;
+                mag_calib_vis_pts_.points.push_back(mag_pt);
+                mag_calib_vis_msg_.markers[0] = mag_calib_vis_pts_;
+                mag_calib_vis_pub_.publish(mag_calib_vis_msg_);
+
+                if(mag_data_cnt_ == MAG_CALIB_REQUIRE_CNT){
+                    is_calibrating_mag = false;
+                    Eigen::Vector3d ofs, gain;
+                    if(Sensor::ellipsoidFit(mag_calib_data_[0], mag_calib_data_[1], mag_calib_data_[2],
+                                         ofs, gain, 1)){
+                        displayMessage("校准成功", Qt::green);
+
+                        mag_offset_set_[0] = ofs(0);
+                        mag_offset_set_[1] = ofs(1);
+                        mag_offset_set_[2] = ofs(2);
+                        mag_gain_set_[0] = gain(0);
+                        mag_gain_set_[1] = gain(1);
+                        mag_gain_set_[2] = gain(2);
+
+                        mag_calib_vis_ellipsoid_.header.frame_id = "map";
+                        mag_calib_vis_ellipsoid_.ns = "mag_pts";
+                        mag_calib_vis_ellipsoid_.id = 105;
+                        mag_calib_vis_ellipsoid_.type = visualization_msgs::Marker::SPHERE;
+                        mag_calib_vis_ellipsoid_.color.r = 0.0;
+                        mag_calib_vis_ellipsoid_.color.g = 0.0;
+                        mag_calib_vis_ellipsoid_.color.b = 0.6;
+                        mag_calib_vis_ellipsoid_.color.a = 0.7;
+                        mag_calib_vis_ellipsoid_.scale.x = mag_gain_set_[0] * 2 / MAG_CALIB_POINT_SCALE;
+                        mag_calib_vis_ellipsoid_.scale.y = mag_gain_set_[1] * 2 / MAG_CALIB_POINT_SCALE;
+                        mag_calib_vis_ellipsoid_.scale.z = mag_gain_set_[2] * 2 / MAG_CALIB_POINT_SCALE;
+                        mag_calib_vis_ellipsoid_.pose.position.x = mag_offset_set_[0] / MAG_CALIB_POINT_SCALE;
+                        mag_calib_vis_ellipsoid_.pose.position.y = mag_offset_set_[1] / MAG_CALIB_POINT_SCALE;
+                        mag_calib_vis_ellipsoid_.pose.position.z = mag_offset_set_[2] / MAG_CALIB_POINT_SCALE;
+                        mag_calib_vis_msg_.markers.resize(2);
+                        mag_calib_vis_msg_.markers[1] = mag_calib_vis_ellipsoid_;
+                        mag_calib_vis_pub_.publish(mag_calib_vis_msg_);
+
+                        setPanelValues();
+                    }
+                    else{
+                        displayMessage("校准失败", Qt::red);
+                    }
+                    mag_calib_start_btn_ -> setText("校准磁力计");
+                }
+            }
         break;
 
         case(mav_comm_driver::MFPUnified::UP_PID1):
@@ -881,6 +995,51 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
 
     getParamValues();
     Q_EMIT configChanged();
+
+    mav_comm_driver::MFPUnified msg;
+    switch (param_mode_)
+    {
+        case default_mode:
+
+        break;
+
+        case servo_debug_mode:
+            msg.msg_id = mav_comm_driver::MFPUnified::DOWN_MOTOR;
+            msg.length = 10;
+            msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_MOTOR);
+            msg.data.push_back(10);
+
+            if(write_flash_checkbox_ -> isChecked())
+                msg.data.push_back(0x01);
+            else
+                msg.data.push_back(0x00);
+
+            if(is_throttle_enabled_)
+                msg.data.push_back(0x01);
+            else
+                msg.data.push_back(0x00);
+            
+            msg.data.push_back(throttle_pwm_set_ >> 8);
+            msg.data.push_back(throttle_pwm_set_);
+#ifdef FOUR_WING
+            msg.data.push_back(throttle_2_pwm_set_ >> 8);
+            msg.data.push_back(throttle_2_pwm_set_);
+#else
+            msg.data.push_back(0);
+            msg.data.push_back(0);
+#endif
+            msg.data.push_back(left_servo_pwm_set_ >> 8);
+            msg.data.push_back(left_servo_pwm_set_);
+            msg.data.push_back(right_servo_pwm_set_ >> 8);
+            msg.data.push_back(right_servo_pwm_set_);
+            displayMessage("下发舵机/电机参数", Qt::yellow);
+            
+        break;
+
+
+    }
+    msg.header.stamp = ros::Time::now();
+    mav_config_pub_.publish(msg);
 //     mav_comm_driver::ModeConfig msg;
 //     uint i;
 
@@ -1088,12 +1247,12 @@ void FMAVStatusPanel::downloadConfig(){ //button slot: download config from fmav
     
     switch (param_mode_)
     {
-    case tuning_mode:
-        msg.msg_id = mav_comm_driver::MFPUnified::DOWN_ACK;
-        msg.length = 1;
-        msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_ACK);
-        msg.data.push_back(1);
-        msg.data.push_back(0x01);   // CMD 0x01 读取PID请求
+        case tuning_mode:
+            msg.msg_id = mav_comm_driver::MFPUnified::DOWN_ACK;
+            msg.length = 1;
+            msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_ACK);
+            msg.data.push_back(1);
+            msg.data.push_back(0x01);   // CMD 0x01 读取PID请求
         break;
     }
 
@@ -1148,6 +1307,7 @@ void FMAVStatusPanel::setParamMode(int index){
 #endif
     boxLayoutVisible(pid_tuning_layout_, false);
     boxLayoutVisible(vicon_test_layout_, false);
+    boxLayoutVisible(sensor_calib_layout_, false);
     // if(param_mode_ == vicon_test_mode)
         // system("rosnode kill /vicon_bridge");
     
@@ -1186,12 +1346,12 @@ void FMAVStatusPanel::setParamMode(int index){
 
     flight_control_joysitck_ -> setVisible(false);
 
-    switch(index){
-        case(0):    //DEFAULT_MODE
+    switch(mode_sel_combo_ -> itemData(index).toInt()){
+        case(default_mode):    //DEFAULT_MODE
             param_mode_ = default_mode;
             break;
 
-        case(1):    //SERVO_DEBUG_MODE
+        case(servo_debug_mode):    //SERVO_DEBUG_MODE
             param_mode_ = servo_debug_mode;
             boxLayoutVisible(right_servo_set_layout_, true);
 #ifdef TWO_WING
@@ -1204,8 +1364,13 @@ void FMAVStatusPanel::setParamMode(int index){
             boxLayoutVisible(throttle_2_set_layout_, true);
 #endif
             break;
+        
+        case(sensor_alignment_mode):
+            param_mode_ = sensor_alignment_mode;
+            boxLayoutVisible(sensor_calib_layout_, true);
+            break;
 
-        case(2):    //FLIGHT_MODE
+        case(flight_mode):    //FLIGHT_MODE
             param_mode_ = flight_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             joystick_sub_ = nh_.subscribe("/joy", 10, &FMAVStatusPanel::joystickReceive, this);
@@ -1216,7 +1381,7 @@ void FMAVStatusPanel::setParamMode(int index){
 #endif
             break;
 
-        case(3):    //TUNING MODE
+        case(tuning_mode):    //TUNING MODE
             param_mode_ = tuning_mode;
             boxLayoutVisible(throttle_set_layout_, true);
             boxLayoutVisible(pid_tuning_layout_, true);
@@ -1226,7 +1391,7 @@ void FMAVStatusPanel::setParamMode(int index){
 #endif
             break;
         
-        case(4):    //VICON TEST MODE
+        case(vicon_test_mode):    //VICON TEST MODE
             param_mode_ = vicon_test_mode;
             boxLayoutVisible(vicon_test_layout_, true);
             break;
@@ -1263,6 +1428,13 @@ void FMAVStatusPanel::getParamValues(){
     pid_int_uplimit_[pid_id_set_] = pid_int_uplimit_edit_ -> text().toUInt();
     pid_setvalue_[pid_id_set_] = pid_setvalue_edit_ -> text().toFloat();
     pid_freq_ = pid_freq_edit_ -> text().toUInt();
+
+    mag_offset_set_[0] = mag_offset_x_edit_ -> text().toDouble();
+    mag_offset_set_[1] = mag_offset_y_edit_ -> text().toDouble();
+    mag_offset_set_[2] = mag_offset_z_edit_ -> text().toDouble();
+    mag_gain_set_[0] = mag_gain_x_edit_ -> text().toDouble();
+    mag_gain_set_[1] = mag_gain_y_edit_ -> text().toDouble();
+    mag_gain_set_[2] = mag_gain_z_edit_ -> text().toDouble();
 
 }
 
@@ -1314,6 +1486,13 @@ void FMAVStatusPanel::setPanelValues(){
     pid_int_uplimit_edit_ -> setText(QString::number(pid_int_uplimit_[pid_id_set_]));
     pid_setvalue_edit_ -> setText(QString::number(pid_setvalue_[pid_id_set_]));
     pid_freq_edit_ -> setText(QString::number(pid_freq_));
+
+    mag_offset_x_edit_ -> setText(QString::number(mag_offset_set_[0]));
+    mag_offset_y_edit_ -> setText(QString::number(mag_offset_set_[1]));
+    mag_offset_z_edit_ -> setText(QString::number(mag_offset_set_[2]));
+    mag_gain_x_edit_ -> setText(QString::number(mag_gain_set_[0]));
+    mag_gain_y_edit_ -> setText(QString::number(mag_gain_set_[1]));
+    mag_gain_z_edit_ -> setText(QString::number(mag_gain_set_[2]));
     
 }
 
@@ -1551,7 +1730,7 @@ void FMAVStatusPanel::displayMessage(const QString& msg, const QColor &color){
 
     is_displaying_msg = true;
     message_display_timer_ -> start(1000); //T = 1000ms
-
+    ROS_INFO_STREAM(msg.toStdString());
     //设置消息
     QPalette palette;
     mode_label_ -> setText(msg);
@@ -1598,6 +1777,58 @@ void FMAVStatusPanel::displayStatus(){
         mode_label_ -> setPalette(palette);
     }
     return;
+}
+
+// 磁力计校准
+void FMAVStatusPanel::calibrateMag(){
+
+    if(is_calibrating_mag){
+        is_calibrating_mag = false;
+        mag_calib_start_btn_ -> setText("磁力计校准");
+    }
+    else{
+        if(is_connected){
+            mag_data_cnt_ = 0;
+            mag_calib_vis_msg_.markers.resize(1);
+            mag_calib_vis_pts_.points.clear();
+            mag_calib_vis_pts_.header.frame_id = "map";
+            mag_calib_vis_pts_.ns = "mag_pts";
+            mag_calib_vis_pts_.id = 104;
+            mag_calib_vis_pts_.type = visualization_msgs::Marker::POINTS;
+            mag_calib_vis_pts_.action = visualization_msgs::Marker::MODIFY;
+            mag_calib_vis_pts_.color.r = 0.0;
+            mag_calib_vis_pts_.color.g = 0.8;
+            mag_calib_vis_pts_.color.b = 0.0;
+            mag_calib_vis_pts_.color.a = 1.0;
+            mag_calib_vis_pts_.scale.x = 6.0 / MAG_CALIB_POINT_SCALE;
+            mag_calib_vis_pts_.scale.y = 6.0 / MAG_CALIB_POINT_SCALE;
+
+            is_calibrating_mag = true;
+            mag_calib_start_btn_ -> setText("中止磁力计校准");
+            displayMessage("校准磁力计中...", Qt::yellow);
+
+        }
+        else{
+            QMessageBox::critical(this, "错误", "飞行器尚未连接或通讯故障");
+        }
+    }
+}
+
+// 清除磁力计图形
+void FMAVStatusPanel::clearCalibrateVisualization(){
+
+    if(!is_calibrating_mag){
+        mag_calib_vis_msg_.markers.resize(1);
+        
+        mag_calib_vis_pts_.header.frame_id = "map";
+        mag_calib_vis_pts_.id = 104;
+        mag_calib_vis_pts_.points.clear();
+        mag_calib_vis_pts_.action = visualization_msgs::Marker::DELETEALL;
+        mag_calib_vis_msg_.markers[0] = mag_calib_vis_pts_;
+
+        mag_calib_vis_pub_.publish(mag_calib_vis_msg_);
+    }
+
 }
 
 // 重载父类的功能
@@ -1649,6 +1880,13 @@ void FMAVStatusPanel::save( rviz::Config config ) const
     config.mapSetValue("PIDIntLowlimitYaw", pid_int_lowlimit_[0]);
     config.mapSetValue("PIDIntLowlimitPitch", pid_int_lowlimit_[1]);
     config.mapSetValue("PIDIntLowlimitRoll", pid_int_lowlimit_[2]);
+
+    config.mapSetValue("SensorMagOffsetX", mag_offset_set_[0]);
+    config.mapSetValue("SensorMagOffsetY", mag_offset_set_[1]);
+    config.mapSetValue("SensorMagOffsetZ", mag_offset_set_[2]);
+    config.mapSetValue("SensorMagGainX", mag_gain_set_[0]);
+    config.mapSetValue("SensorMagGainY", mag_gain_set_[1]);
+    config.mapSetValue("SensorMagGainZ", mag_gain_set_[2]);
 
 }
 
@@ -1702,6 +1940,13 @@ void FMAVStatusPanel::load( const rviz::Config& config )
     config.mapGetValue("PIDIntLowlimitYaw", &v_tmp); pid_int_lowlimit_[0] = v_tmp.toUInt();
     config.mapGetValue("PIDIntLowlimitPitch", &v_tmp); pid_int_lowlimit_[1] = v_tmp.toUInt();
     config.mapGetValue("PIDIntLowlimitRoll", &v_tmp); pid_int_lowlimit_[2] = v_tmp.toUInt();
+
+    config.mapGetValue("SensorMagOffsetX", &v_tmp); mag_offset_set_[0] = v_tmp.toDouble();
+    config.mapGetValue("SensorMagOffsetY", &v_tmp); mag_offset_set_[1] = v_tmp.toDouble();
+    config.mapGetValue("SensorMagOffsetZ", &v_tmp); mag_offset_set_[2] = v_tmp.toDouble();
+    config.mapGetValue("SensorMagGainX", &v_tmp); mag_gain_set_[0] = v_tmp.toDouble();
+    config.mapGetValue("SensorMagGainY", &v_tmp); mag_gain_set_[1] = v_tmp.toDouble();
+    config.mapGetValue("SensorMagGainZ", &v_tmp); mag_gain_set_[2] = v_tmp.toDouble();
 
     setPanelValues();
     ROS_INFO("Parameter History Loaded.");

@@ -17,3 +17,4 @@ uint8 UP_PID5 = 20      # 0x14
 uint8 UP_PID6 = 21      # 0x15
 
 uint8 DOWN_ACK = 2      # 0x02
+uint8 DOWN_MOTOR = 81   # 0x51
