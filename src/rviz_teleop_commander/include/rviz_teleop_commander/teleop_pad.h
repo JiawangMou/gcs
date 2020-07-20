@@ -11,10 +11,12 @@
 #include <tf/transform_broadcaster.h>
 #include <sensor_msgs/Joy.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <visualization_msgs/MarkerArray.h>
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <queue>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -84,10 +86,7 @@ protected Q_SLOTS:
     void checkConnection();
     void setParamMode(int);
     void changeTuningAxis(int);
-    void enableThrottle();
-#ifdef FOUR_WING
-    void enableThrottle2();
-#endif
+    void enableThrottleDebug();
     void uploadJoystick();
     void refreshViconTopicList();
     void viconStartEnd();
@@ -103,14 +102,26 @@ protected:
     void getParamValues();
     void setPanelValues();
     std::string getCommandOutput(const char* cmd);
-    void displayMessage(const QString&, const QColor&);
+
+    typedef struct{
+        std::string text;
+        QColor color;
+        uint time;  // in ms
+        uint priority;
+    }message_t;
+    void displayMessage(const message_t &, const bool);
     void displayStatus();
+    void initPosePublish();
 
 // 内部变量.
 protected:
 
-    // 图标logo
+    // 图标logo & 电池
+    QHBoxLayout* logo_voltage_layout_;
     QLabel* logo_img_;
+    QVBoxLayout* voltage_layout_;
+    QLabel* voltage_front_label_;
+    QLabel* voltage_label_;
 
     // 模式显示控件
     QLabel* mode_front_label_;
@@ -164,13 +175,14 @@ protected:
     float cur_pitch_rate_;
     float cur_yaw_rate_;
     float cur_mag_raw_[3];
-    uint8_t cur_mid_servo_pwm_;
-    uint8_t cur_left_servo_pwm_;
-    uint8_t cur_right_servo_pwm_;
+    float cur_voltage_;
+    uint16_t cur_mid_servo_pwm_;
+    uint16_t cur_left_servo_pwm_;
+    uint16_t cur_right_servo_pwm_;
     uint16_t cur_throttle_pwm_;
     uint16_t cur_throttle_2_pwm_;
 
-    uint8_t cur_climb_pwm_;
+    uint16_t cur_climb_pwm_;
     uint32_t cur_time_ms_;
     uint8_t cur_pid_id_;
 
@@ -196,7 +208,7 @@ protected:
     static const uint8_t vicon_test_mode = 5;
 
 
-    //开始模式，手动模式的控件
+    //舵机/电机调试模式控件
     QHBoxLayout* right_servo_set_layout_;
     QLabel* right_servo_set_front_label_;
     QSlider* right_servo_set_slider_;
@@ -211,17 +223,17 @@ protected:
     QSlider* mid_servo_set_slider_;
     QSpinBox* mid_servo_set_spin_;
 #endif
+    QVBoxLayout* throttle_layout_;
+    QPushButton* throttle_debug_enable_;
     QHBoxLayout* throttle_set_layout_;
     QLabel* throttle_set_front_label_;
     QSlider* throttle_set_slider_;
     QSpinBox* throttle_set_spin_;
-    QPushButton* throttle_enable_;
 #ifdef FOUR_WING
     QHBoxLayout* throttle_2_set_layout_;
     QLabel* throttle_2_set_front_label_;
     QSlider* throttle_2_set_slider_;
     QSpinBox* throttle_2_set_spin_;
-    QPushButton* throttle_2_enable_;
 #endif
 #ifdef TWO_WING
     QHBoxLayout* climb_set_layout_;
@@ -239,6 +251,7 @@ protected:
 #ifdef FOUR_WING
     uint16_t throttle_2_pwm_set_;
 #endif
+    bool is_debugging_servo_throttle_;
     bool is_throttle_enabled_;
 #ifdef FOUR_WING
     bool is_throttle_2_enabled_;
@@ -336,11 +349,11 @@ protected:
     float pid_setvalue_[3];
     float pid_ext_set_[3][3];
     float pid_int_set_[3][3];
-    float pid_ext_uplimit_[3];
-    float pid_ext_lowlimit_[3];
-    uint8_t pid_int_uplimit_[3];
-    uint8_t pid_int_lowlimit_[3];
-    uint8_t pid_id_set_;
+    int16_t pid_ext_uplimit_[3];
+    int16_t pid_ext_lowlimit_[3];
+    int16_t pid_int_uplimit_[3];
+    int16_t pid_int_lowlimit_[3];
+    uint8_t pid_id_set_;        //0:yaw 1:pitch 2:roll
     float pid_vel_set_[3][3];   //0:x 1:y 2:z
     float pid_pos_set_[3][3];   //0:p 1:i 2:d
 
@@ -361,8 +374,10 @@ protected:
     // FILE* joystick_;
 
     bool is_connected;
-    bool is_displaying_msg;
     bool is_vicon_started;
+
+    bool is_displaying_msg;
+    std::queue<message_t> display_message_queue_;
 
     uint mav_down_msg_cnt_;
     uint mav_down_msg_cnt_prev_;

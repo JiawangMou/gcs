@@ -64,36 +64,40 @@
 |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |  
 |---|---|---|---|---|---|---|---|---|
 |(int16)rollRate.kp|(int16)rollRate.ki|(int16)rollRate.kd|(int16)pitchRate.kp|(int16)pitchRate.ki|  
-|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |   |  
-|(int16)pitchRate.kd|(int16)yawRate.kp|(int16)yawRate.ki|(int16)yawRate.kd|  |  
+|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |[18]-[19] |  
+|(int16)pitchRate.kd|(int16)yawRate.kp|(int16)yawRate.ki|(int16)yawRate.kd|(int16)rollRate.ub|
+|[20]-[21] |[22]-[23] |  
+|(int16)pitchRate.ub|(int16)yawRate.ub|
 >数据调整说明:  
 >* 发送顺序高八位在前  
->* 所有数据*10扩大  
+>* pid参数*10扩大，上下限无处理  
 
 ### msgID:UP_PID2(0x11)(上传姿态角度环PID参数)  
- |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9]|    
+|[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9]|
 |---|---|---|---|---|---|---|---|---|
-|(int16)rollAngle.kp|(int16)rollAngle.ki|(int16)rollAngle.kd|(int16)pitchAngle.kp|(int16)pitchAngle.ki|  
-|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |  |  
-|(int16)pitchAngle.kd|(int16)yawAngle.kp|(int16)yawAngle.ki|(int16)yawAngle.kd|  
->数据调整说明:  
+|(int16)rollAngle.kp|(int16)rollAngle.ki|(int16)rollAngle.kd|(int16)pitchAngle.kp|(int16)pitchAngle.ki|
+|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |[18]-[19] |  
+|(int16)pitchAngle.kd|(int16)yawAngle.kp|(int16)yawAngle.ki|(int16)yawAngle.kd|(int16)rollAngle.ub|
+|[20]-[21] |[22]-[23] |  
+|(int16)pitchAngle.ub|(int16)yawAngle.ub|
+>数据调整说明:
 >* 发送顺序高八位在前
->* 所有数据*10扩大
+>* pid参数*10扩大，上下限无处理
 
 ### msgID:UP_PID5(0x14)(上传姿态角速度环PID上下限)  
 |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |
 |---|---|---|---|---|---|---|---|---|
-|(int16)rollRate.ub|(int16)rollRate.lb|(int16)pitchRate.ub|(int16)pitchRate.ub|(int16)yawRate.ub|
+|(int16)rollRate.ub|(int16)rollRate.lb|(int16)pitchRate.ub|(int16)pitchRate.lb|(int16)yawRate.ub|
 |[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |
 |(int16)yawRate.lb|0|0|0|
 >数据调整说明:
 >* 发送顺序高八位在前
->* 所有数据*10扩大
+>* 所有数据无处理
 
 ### msgID:UP_PID6(0x15)(上传姿态角度环PID上下限)  
 |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |
 |---|---|---|---|---|---|---|---|---|
-|(int16)rollAngle.ub|(int16)rollAngle.lb|(int16)pitchAngle.ub|(int16)pitchAngle.ub|(int16)yawAngle.ub|
+|(int16)rollAngle.ub|(int16)rollAngle.lb|(int16)pitchAngle.ub|(int16)pitchAngle.lb|(int16)yawAngle.ub|
 |[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |
 |(int16)yawAngle.lb|0|0|0|
 >数据调整说明:  
@@ -163,41 +167,25 @@
 |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |  
 |---|---|---|---|---|---|---|---|---|
 |(int16)rollRate.kp|(int16)rollRate.ki|(int16)rollRate.kd|(int16)pitchRate.kp|(int16)pitchRate.ki|  
-|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |   |  
-|(int16)pitchRate.kd|(int16)yawRate.kp|(int16)yawRate.ki|(int16)yawRate.kd|  |
+|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |[18]-[19] |  
+|(int16)pitchRate.kd|(int16)yawRate.kp|(int16)yawRate.ki|(int16)yawRate.kd|(int16)rollRate.ub|
+|[20]-[21] |[22]-[23] |  
+|(int16)pitchRate.ub|(int16)yawRate.ub|
 >数据调整说明:  
 >* 发送顺序高八位在前  
->* 所有数据*10扩大  
+>* pid参数*10扩大，上下限无处理  
 
 ### msgID:DOWN_PID2(0x11)(发送姿态角度环PID参数)  
- |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9]|
+|[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9]|
 |---|---|---|---|---|---|---|---|---|
 |(int16)rollAngle.kp|(int16)rollAngle.ki|(int16)rollAngle.kd|(int16)pitchAngle.kp|(int16)pitchAngle.ki|
-|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |  |  
-|(int16)pitchAngle.kd|(int16)yawAngle.kp|(int16)yawAngle.ki|(int16)yawAngle.kd|
+|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |[18]-[19] |  
+|(int16)pitchAngle.kd|(int16)yawAngle.kp|(int16)yawAngle.ki|(int16)yawAngle.kd|(int16)rollAngle.ub|
+|[20]-[21] |[22]-[23] |  
+|(int16)pitchAngle.ub|(int16)yawAngle.ub|
 >数据调整说明:  
 >* 发送顺序高八位在前
->* 所有数据*10扩大
-
-### msgID:DOWN_PID5(0x14)(发送姿态角速度环PID上下限)  
-|[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |
-|---|---|---|---|---|---|---|---|---|
-|(int16)rollRate.ub|(int16)rollRate.lb|(int16)pitchRate.ub|(int16)pitchRate.ub|(int16)yawRate.ub|
-|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |
-|(int16)yawRate.lb|0|0|0|
->数据调整说明:
->* 发送顺序高八位在前
->* 所有数据*10扩大
-
-### msgID:DOWN_PID6(0x15)(发送姿态角度环PID上下限)  
-|[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |
-|---|---|---|---|---|---|---|---|---|
-|(int16)rollAngle.ub|(int16)rollAngle.lb|(int16)pitchAngle.ub|(int16)pitchAngle.ub|(int16)yawAngle.ub|
-|[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |
-|(int16)yawAngle.lb|0|0|0|
->数据调整说明:  
->* 发送顺序高八位在前
->* 所有数据*10扩大
+>* pid参数*10扩大，上下限无处理  
 
 ### msgID:DOWN_PID3(0x12)(发送位置环PID参数)  
 |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |  
@@ -208,9 +196,17 @@
 >* 所有数据*10扩大  
 
 ### msgID:DOWN_PID4(0x13)(发送位置环PID参数)  
- |[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |  
+|[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |[10]-[11] |[12]-[13] |[14]-[15] |[16]-[17] |  
 |---|---|---|---|---|---|---|---|---|
 |pidX.kp|pidX.ki|pidX.kd|0|0|0|0|0|0|
 >数据调整说明:  
 >* 发送顺序高八位在前  
 >* 所有数据*10扩大  
+
+### msgID:DOWN_MAG_CALIB(0x30)(发送磁力计校准数据)  
+|[0]-[1]|[2]-[3] |[4]-[5] |[6]-[7] |[8]-[9] |[10]-[11] |
+|---|---|---|---|---|---|
+|(int16)offset.x|(int16)offset.y|(int16)offset.z|(int16)gain.x|(int16)gain.y|(int16)gain.z|
+>数据调整说明:  
+>* 发送顺序高八位在前
+>* 所有数据无调整

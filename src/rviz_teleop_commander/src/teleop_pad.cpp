@@ -52,6 +52,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     }
     pid_freq_ = 0;
     pid_id_set_ = 0;
+    is_debugging_servo_throttle_ = false;
     is_throttle_enabled_ = false;
 #ifdef FOUR_WING
     is_throttle_2_enabled_ = 0;
@@ -63,7 +64,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mag_calib_data_[1].resize(MAG_CALIB_REQUIRE_CNT);
     mag_calib_data_[2].resize(MAG_CALIB_REQUIRE_CNT);
 
-    // 标志logo
+    // 标志logo & 电池
+    logo_voltage_layout_ = new QHBoxLayout();
     std::string logo_img_path;
     nh_.param<std::string>("/logo_path", logo_img_path, "");
     logo_img_ = new QLabel();
@@ -72,6 +74,21 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     logo_img_ -> setScaledContents(true);
     logo_img_ -> setAlignment(Qt::AlignCenter);
     logo_img_ -> setPixmap(QPixmap(logo_img_path.c_str()));
+    logo_voltage_layout_ -> addWidget(logo_img_);
+    voltage_layout_ = new QVBoxLayout();
+    voltage_front_label_ = new QLabel("电压");
+    voltage_front_label_ -> setFont(QFont("Timers", 18, QFont::Normal));
+    voltage_front_label_ -> setAlignment(Qt::AlignBottom);
+    voltage_layout_ -> addWidget(voltage_front_label_);
+    voltage_label_ = new QLabel("0.0 V");
+    voltage_label_ -> setFont(QFont("Timers", 18, QFont::Normal));
+    voltage_label_ -> setAlignment(Qt::AlignTop);
+    voltage_label_ -> setFrameShape(QFrame::Panel);
+    voltage_label_ -> setFrameShadow(QFrame::Sunken);
+    voltage_label_ -> setAutoFillBackground(true);
+    voltage_layout_ ->addWidget(voltage_label_);
+    logo_voltage_layout_ -> addLayout(voltage_layout_);
+
 
     // 建立一个水平layout(显示飞行模式)
     QHBoxLayout* mode_layout = new QHBoxLayout;
@@ -309,9 +326,11 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect(right_servo_set_spin_, SIGNAL(valueChanged(int)), right_servo_set_slider_, SLOT(setValue(int)));
     connect(right_servo_set_slider_, SIGNAL(valueChanged(int)), right_servo_set_spin_, SLOT(setValue(int)));
 
-    throttle_set_layout_ = new QHBoxLayout;
-    throttle_enable_ = new QPushButton("启动");
-    throttle_set_layout_ -> addWidget(throttle_enable_);
+    throttle_layout_ = new QVBoxLayout();
+    throttle_debug_enable_ = new QPushButton("电机解锁(接管)");
+    throttle_layout_ -> addWidget(throttle_debug_enable_);
+
+    throttle_set_layout_ = new QHBoxLayout();
     throttle_set_front_label_ = new QLabel("扑翼油门PWM: ");
     throttle_set_front_label_ -> setAlignment(Qt::AlignCenter);
     throttle_set_layout_ -> addWidget(throttle_set_front_label_);
@@ -326,11 +345,12 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     throttle_set_layout_ -> setStretchFactor(throttle_set_spin_, 1);
     connect(throttle_set_spin_, SIGNAL(valueChanged(int)), throttle_set_slider_, SLOT(setValue(int)));
     connect(throttle_set_slider_, SIGNAL(valueChanged(int)), throttle_set_spin_, SLOT(setValue(int)));
+    throttle_layout_ -> addLayout(throttle_set_layout_);
 
 #ifdef FOUR_WING
     throttle_2_set_layout_ = new QHBoxLayout;
-    throttle_2_enable_ = new QPushButton("启动");
-    throttle_2_set_layout_ -> addWidget(throttle_2_enable_);
+    // throttle_2_enable_ = new QPushButton("启动");
+    // throttle_2_set_layout_ -> addWidget(throttle_2_enable_);
     throttle_2_set_front_label_ = new QLabel("扑翼2油门PWM: ");
     throttle_2_set_front_label_ -> setAlignment(Qt::AlignCenter);
     throttle_2_set_layout_ -> addWidget(throttle_2_set_front_label_);
@@ -345,6 +365,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     throttle_2_set_layout_ -> setStretchFactor(throttle_2_set_spin_, 1);
     connect(throttle_2_set_spin_, SIGNAL(valueChanged(int)), throttle_2_set_slider_, SLOT(setValue(int)));
     connect(throttle_2_set_slider_, SIGNAL(valueChanged(int)), throttle_2_set_spin_, SLOT(setValue(int)));
+    throttle_layout_ -> addLayout(throttle_2_set_layout_);
 #endif
 #ifdef TWO_WING
     climb_set_layout_ = new QHBoxLayout;
@@ -558,7 +579,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 
     QVBoxLayout* layout = new QVBoxLayout;
     layout -> setContentsMargins(20,20,20,20);
-    layout -> addWidget(logo_img_);
+    layout -> addLayout(logo_voltage_layout_);
     layout -> addLayout(mode_layout);
     layout -> addLayout(time_layout_);
     layout -> addWidget(spline_1);
@@ -571,15 +592,12 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     layout -> addLayout(para_menu);
     layout -> addWidget(mode_sel_combo_);
     layout -> addWidget(spline_4);
+    layout -> addLayout(throttle_layout_);
 #ifdef TWO_WING
     layout -> addLayout(mid_servo_set_layout_);
 #endif
     layout -> addLayout(left_servo_set_layout_);
     layout -> addLayout(right_servo_set_layout_);
-    layout -> addLayout(throttle_set_layout_);
-#ifdef FOUR_WING
-    layout -> addLayout(throttle_2_set_layout_);
-#endif
 #ifdef TWO_WING
     layout -> addLayout(climb_set_layout_);
 #endif
@@ -590,10 +608,10 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     layout -> addStretch();
     setLayout( layout );
 
-    mav_down_sub_ = nh_.subscribe("/received_data", 10, &FMAVStatusPanel::updateMAVStatus, this);
-    vis_pub_ = nh_.advertise< visualization_msgs::Marker>("/mav_vis", 10);
-    mav_config_pub_ = nh_.advertise<mav_comm_driver::MFPUnified>("/mav_download", 10);
-    mag_calib_vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/mag_calib_vis",10);
+    mav_down_sub_ = nh_.subscribe("/received_data", 500, &FMAVStatusPanel::updateMAVStatus, this);
+    vis_pub_ = nh_.advertise< visualization_msgs::Marker>("/mav_vis", 500);
+    mav_config_pub_ = nh_.advertise<mav_comm_driver::MFPUnified>("/mav_download", 500);
+    mag_calib_vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/mag_calib_vis", 500);
 
     //飞行模式手柄下发计时器
     joystick_send_timer_ = new QTimer( this );
@@ -613,10 +631,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect( download_from_mav_,  SIGNAL( clicked() ), this, SLOT( downloadConfig() ));
     connect( mode_sel_combo_, SIGNAL(currentIndexChanged(int)), this, SLOT(setParamMode(int)));
     connect( pid_id_btn_group_, SIGNAL(buttonClicked(int)), this, SLOT(changeTuningAxis(int)));
-    connect( throttle_enable_, SIGNAL(clicked()), this, SLOT(enableThrottle()));
-#ifdef FOUR_WING
-    connect( throttle_2_enable_, SIGNAL(clicked()), this, SLOT(enableThrottle2()));
-#endif
+    connect( throttle_debug_enable_, SIGNAL(clicked()), this, SLOT(enableThrottleDebug()));
+
     connect( vicon_topic_refresh_btn_,  SIGNAL( clicked() ), this, SLOT( refreshViconTopicList() ));
     connect( vicon_start_btn_,  SIGNAL( clicked() ), this, SLOT( viconStartEnd() ));
     connect( flight_control_joysitck_, SIGNAL(JoystickValueChanged(float,float)), this, SLOT(joystickMove(float, float)) );
@@ -628,7 +644,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 
     param_mode_ = default_mode;
     setParamMode(default_mode);
-
+    initPosePublish();
     // system("rosrun joy joy_node&");
 
 }
@@ -639,6 +655,26 @@ FMAVStatusPanel::~FMAVStatusPanel(){
     //pclose(joystick_);
 }
 
+void FMAVStatusPanel::initPosePublish(){
+
+    tf::Transform transform;
+    tf::Quaternion q;
+    q.setRPY(0, 0, 0);
+    transform.setRotation(q);
+    transform.setOrigin(tf::Vector3(0,0,0));
+    tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
+    // transform.setOrigin(tf::Vector3(1.286e-3,-0.551e-3,41.911e-3));
+    // tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "base_link", "flapping_mechanism"));
+    // transform.setOrigin(tf::Vector3(0,13.95e-3,18.9913e-3));
+    // tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "flapping_mechanism", "left_leading_edge"));
+    // transform.setOrigin(tf::Vector3(0,-13.95e-3,18.9913e-3));
+    // tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "flapping_mechanism", "right_leading_edge"));
+    // transform.setOrigin(tf::Vector3(0,0,0));
+    // tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "left_leading_edge", "left_wing"));
+    // transform.setOrigin(tf::Vector3(0,0,0));
+    // tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "right_leading_edge", "right_wing"));
+}
+
 void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPtr& msg){
 
     mav_down_msg_cnt_ ++;
@@ -646,30 +682,22 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
     QPalette palette;
     char numstr[30];
 
-    if(!is_connected){
-        is_connected = true;
-        displayStatus();
-    }
-    
-    if(!upload_to_mav_ -> isEnabled())
-        upload_to_mav_ -> setEnabled(true);
-    
-    if(!download_from_mav_ -> isEnabled())
-        download_from_mav_ -> setEnabled(true);
-
-    if(!throttle_enable_ -> isEnabled()){
-        throttle_enable_ -> setEnabled(true);
-#ifdef FOUR_WING
-        throttle_2_enable_ -> setEnabled(true);
-#endif
-    }
 
     mode_id_ = msg -> msg_id;
     switch(msg -> msg_id){
         case(mav_comm_driver::MFPUnified::UP_STATUS):
 
-            cur_roll_ = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
-            cur_pitch_ = - (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 100.0;
+            // receive status ---> connection detected.
+            if(!is_connected){
+                is_connected = true;
+                displayStatus();
+                throttle_debug_enable_ -> setEnabled(true);
+                upload_to_mav_ -> setEnabled(true);
+                download_from_mav_ -> setEnabled(true);
+            }
+
+            cur_roll_ = - (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
+            cur_pitch_ = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 100.0;
             cur_yaw_ = - (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
 
             // update display values
@@ -709,6 +737,7 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             sprintf(numstr, "%.2f", cur_yaw_rate_);
             yaw_rate_label_ -> setText(numstr);
 
+            // 校准磁力计
             if(is_calibrating_mag){
                 
                 mag_calib_data_[0](mag_data_cnt_) = cur_mag_raw_[0];
@@ -729,7 +758,14 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                     Eigen::Vector3d ofs, gain;
                     if(Sensor::ellipsoidFit(mag_calib_data_[0], mag_calib_data_[1], mag_calib_data_[2],
                                          ofs, gain, 1)){
-                        displayMessage("校准成功", Qt::green);
+                        displayMessage(
+                            message_t{
+                                .text="校准成功",
+                                .color=Qt::blue,
+                                .time=200
+                            },
+                            false
+                        );
 
                         mag_offset_set_[0] = ofs(0);
                         mag_offset_set_[1] = ofs(1);
@@ -759,7 +795,14 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                         setPanelValues();
                     }
                     else{
-                        displayMessage("校准失败", Qt::red);
+                        displayMessage(
+                            message_t{
+                                .text="校准失败",
+                                .color=Qt::red,
+                                .time=200
+                            },
+                            false
+                        );
                     }
                     mag_calib_start_btn_ -> setText("校准磁力计");
                 }
@@ -777,8 +820,22 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pid_int_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
             pid_int_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
             pid_int_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
-
-            displayMessage("收到内环PID参数", Qt::yellow);
+            // uplimit
+            pid_int_uplimit_[2] = (int16_t)(msg -> data[20] << 8 | msg -> data[21]);
+            pid_int_uplimit_[1] = (int16_t)(msg -> data[22] << 8 | msg -> data[23]);
+            pid_int_uplimit_[0] = (int16_t)(msg -> data[24] << 8 | msg -> data[25]);
+            pid_int_lowlimit_[2] = - pid_int_uplimit_[2];
+            pid_int_lowlimit_[1] = - pid_int_uplimit_[1];
+            pid_int_lowlimit_[0] = - pid_int_uplimit_[0];
+            
+            displayMessage(
+                message_t{
+                    .text="收到PID(1)",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+            );
             // update display values
             setPanelValues();
         break;
@@ -795,7 +852,21 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pid_ext_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
             pid_ext_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
 
-            displayMessage("收到外环PID参数", Qt::yellow);
+            pid_ext_uplimit_[2] = (int16_t)(msg -> data[20] << 8 | msg -> data[21]);
+            pid_ext_uplimit_[1] = (int16_t)(msg -> data[22] << 8 | msg -> data[23]);
+            pid_ext_uplimit_[0] = (int16_t)(msg -> data[24] << 8 | msg -> data[25]);
+            pid_ext_lowlimit_[2] = - pid_ext_uplimit_[2];
+            pid_ext_lowlimit_[1] = - pid_ext_uplimit_[1];
+            pid_ext_lowlimit_[0] = - pid_ext_uplimit_[0];
+
+            displayMessage(
+                message_t{
+                    .text="收到PID(2)",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+            );
             // update display values
             setPanelValues();
         break;
@@ -811,7 +882,14 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pid_vel_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
             pid_vel_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
             pid_vel_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
-
+            displayMessage(
+                message_t{
+                    .text="收到PID(3)",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+            );
             ROS_INFO_STREAM("VZ: P:" << pid_vel_set_[2][0] << "I:" << pid_vel_set_[2][1] << "D:" << pid_vel_set_[2][2]);
             ROS_INFO_STREAM("VX: P:" << pid_vel_set_[0][0] << "I:" << pid_vel_set_[0][1] << "D:" << pid_vel_set_[0][2]);
             ROS_INFO_STREAM("PZ: P:" << pid_pos_set_[2][0] << "I:" << pid_pos_set_[2][1] << "D:" << pid_pos_set_[2][2]);
@@ -822,61 +900,121 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pid_pos_set_[0][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
             pid_pos_set_[0][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
             pid_pos_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
-            
+            displayMessage(
+                message_t{
+                    .text="收到PID(4)",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+            );
             ROS_INFO_STREAM("PX: P:" << pid_pos_set_[0][0] << "I:" << pid_pos_set_[0][1] << "D:" << pid_pos_set_[0][2]);
         break;
 
-        case(mav_comm_driver::MFPUnified::UP_RCDATA):
-            throttle_joystick_ = (uint)(msg -> data[2] << 8 | msg -> data[3]);
-            yaw_joystick_ = (uint)(msg -> data[4] << 8 | msg -> data[5]);
-            roll_joystick_ = (uint)(msg -> data[6] << 8 | msg -> data[7]);
-            pitch_joystick_ = (uint)(msg -> data[2] << 8 | msg -> data[3]);
+        case(mav_comm_driver::MFPUnified::UP_PID5):
+            //0: yaw, 1: pitch, 2:roll
+            displayMessage(
+                message_t{
+                    .text="收到PID(5)",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+            );
+            setPanelValues();
+        break;
 
-            flight_control_joysitck_ -> setJoystickPos(pitch_joystick_, roll_joystick_);
+        case(mav_comm_driver::MFPUnified::UP_PID6):
+            //0: yaw, 1: pitch, 2:roll
+            displayMessage(
+                message_t{
+                    .text="收到PID(6)",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+            );
+            setPanelValues();
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_MOTOR):
+            // f1, f2, s1, s2
+            cur_throttle_pwm_ = (uint16_t)(msg -> data[2] << 8 | msg -> data[3]);
+            cur_throttle_2_pwm_ = (uint16_t)(msg -> data[4] << 8 | msg -> data[5]);
+            cur_left_servo_pwm_ = (uint16_t)(msg -> data[6] << 8 | msg -> data[7]);
+            cur_right_servo_pwm_ = (uint16_t)(msg -> data[8] << 8 | msg -> data[9]);
+
+            sprintf(numstr, "%u", cur_left_servo_pwm_);
+            left_servo_label_ -> setText(numstr);
+            sprintf(numstr, "%u", cur_right_servo_pwm_);
+            right_servo_label_ -> setText(numstr);
+            sprintf(numstr, "%u", cur_throttle_pwm_);
+            throttle_label_ -> setText(numstr);
+#ifdef FOUR_WING
+            sprintf(numstr, "%u", cur_throttle_2_pwm_);
+            throttle_2_label_ -> setText(numstr);
+#endif
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_POWER):
+            cur_voltage_ = (uint16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
+            sprintf(numstr, "%.2f V", cur_voltage_);
+            voltage_label_ -> setText(numstr);
+            
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_RCDATA):
+            if(param_mode_ == flight_mode){
+                throttle_joystick_ = (uint)(msg -> data[2] << 8 | msg -> data[3]);
+                yaw_joystick_ = (uint)(msg -> data[4] << 8 | msg -> data[5]);
+                roll_joystick_ = (uint)(msg -> data[6] << 8 | msg -> data[7]);
+                pitch_joystick_ = (uint)(msg -> data[2] << 8 | msg -> data[3]);
+
+                flight_control_joysitck_ -> setJoystickPos(pitch_joystick_, roll_joystick_);
 #ifdef TWO_WING
-            throttle_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * THROTTLE_MAX) : 0;
-            throttle_set_spin_ -> setValue(throttle_pwm_set_);
+                throttle_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * THROTTLE_MAX) : 0;
+                throttle_set_spin_ -> setValue(throttle_pwm_set_);
 #endif
 #ifdef FOUR_WING
-            throttle_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * THROTTLE_MAX - 100) : 0;
-            throttle_set_spin_ -> setValue(throttle_pwm_set_);
-            throttle_2_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * (THROTTLE_MAX - 100)) : 0;
-            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+                throttle_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * THROTTLE_MAX - 100) : 0;
+                throttle_set_spin_ -> setValue(throttle_pwm_set_);
+                throttle_2_pwm_set_ = throttle_joystick_ > 0.0 ? (int)(throttle_joystick_ * (THROTTLE_MAX - 100)) : 0;
+                throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
 #endif
-        
+            }
 
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_CHECK):
+            switch(msg -> data[2]){
+                case(mav_comm_driver::MFPUnified::DOWN_PID1):
+                    displayMessage(
+                        message_t{
+                            .text="内环PID写入成功",
+                            .color=Qt::blue,
+                            .time=200
+                        },
+                        false
+                    );
+                break;
+                case(mav_comm_driver::MFPUnified::DOWN_PID2):
+                    displayMessage(
+                        message_t{
+                            .text="外环PID写入成功",
+                            .color=Qt::blue,
+                            .time=200
+                        },
+                        false
+                    );
+                break;
+            }
+        break;
     }
-//     mode_id_ = msg -> mode_id;
 
-//     cur_roll_ = msg -> roll_angle;
-//     cur_pitch_ = msg -> pitch_angle;
-//     cur_yaw_ = msg -> yaw_angle;
-//     cur_roll_rate_ = msg -> roll_rate;
-//     cur_pitch_rate_ = msg -> pitch_rate;
-//     cur_yaw_rate_ = msg -> yaw_rate;
 //     cur_mid_servo_pwm_ = msg -> mid_servo_pwm;
-//     cur_left_servo_pwm_ = msg -> left_servo_pwm;
-//     cur_right_servo_pwm_ = msg -> right_servo_pwm;
-//     cur_throttle_pwm_ = msg -> left_throttle_pwm;
-//     cur_throttle_2_pwm_ = msg -> right_throttle_pwm;
 //     cur_climb_pwm_ = msg -> climb_pwm;
 //     cur_time_ms_ = msg -> board_time;
 //     cur_pid_id_ = msg -> pid_id;
-
-//     // update display values
-//     char numstr[30];
-//     sprintf(numstr, "%.2f", cur_roll_);
-//     roll_label_ -> setText(numstr);
-//     sprintf(numstr, "%.2f", cur_pitch_);
-//     pitch_label_ -> setText(numstr);
-//     sprintf(numstr, "%.2f", cur_yaw_);
-//     yaw_label_ -> setText(numstr);
-//     sprintf(numstr, "%.2f", cur_roll_rate_);
-//     roll_rate_label_ -> setText(numstr);
-//     sprintf(numstr, "%.2f", cur_pitch_rate_);
-//     pitch_rate_label_ -> setText(numstr);
-//     sprintf(numstr, "%.2f", cur_yaw_rate_);
-//     yaw_rate_label_ -> setText(numstr);
 
 // #ifdef TWO_WING
 //     sprintf(numstr, "%u", cur_mid_servo_pwm_);
@@ -968,10 +1106,7 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
 void FMAVStatusPanel::joystickReceive(const sensor_msgs::Joy::ConstPtr& msg){
 
     if(msg -> buttons[7] && is_connected){
-        enableThrottle();
-#ifdef FOUR_WING
-        enableThrottle2();
-#endif
+        enableThrottleDebug();
     }
 
     flight_control_joysitck_ -> setJoystickPos(msg -> axes[0], msg -> axes[1]);
@@ -1014,7 +1149,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             else
                 msg.data.push_back(0x00);
 
-            if(is_throttle_enabled_)
+            if(is_debugging_servo_throttle_)
                 msg.data.push_back(0x01);
             else
                 msg.data.push_back(0x00);
@@ -1032,14 +1167,119 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             msg.data.push_back(left_servo_pwm_set_);
             msg.data.push_back(right_servo_pwm_set_ >> 8);
             msg.data.push_back(right_servo_pwm_set_);
-            displayMessage("下发舵机/电机参数", Qt::yellow);
-            
+
+            displayMessage(
+                message_t{
+                    .text="下发舵机/电机参数",
+                    .color=Qt::blue,
+                    .time=400
+                },
+                false
+            );
+
+            msg.header.stamp = ros::Time::now();
+            mav_config_pub_.publish(msg);
         break;
 
+        case(tuning_mode):
+
+            int16_t tmp_16;
+
+            // int pid
+            msg.msg_id = mav_comm_driver::MFPUnified::DOWN_PID1;
+            msg.length = 24;
+            msg.data.clear();
+            msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_PID1);
+            msg.data.push_back(24);
+
+            tmp_16 = (int16_t)(pid_int_set_[2][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[2][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[2][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[1][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[1][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[1][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[0][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[0][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_int_set_[0][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+
+            msg.data.push_back(pid_int_uplimit_[2] >> 8);
+            msg.data.push_back(pid_int_uplimit_[2]);
+            msg.data.push_back(pid_int_uplimit_[1] >> 8);
+            msg.data.push_back(pid_int_uplimit_[1]);
+            msg.data.push_back(pid_int_uplimit_[0] >> 8);
+            msg.data.push_back(pid_int_uplimit_[0]);
+
+            msg.header.stamp = ros::Time::now();
+            mav_config_pub_.publish(msg);
+
+            // ext pid
+            msg.msg_id = mav_comm_driver::MFPUnified::DOWN_PID2;
+            msg.length = 24;
+            msg.data.clear();
+            msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_PID2);
+            msg.data.push_back(24);
+
+            tmp_16 = (int16_t)(pid_ext_set_[2][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[2][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[2][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[1][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[1][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[1][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[0][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[0][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_set_[0][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+
+            tmp_16 = (int16_t)(pid_ext_uplimit_[2]);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_uplimit_[1]);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_ext_uplimit_[0]);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+
+            msg.header.stamp = ros::Time::now();
+            mav_config_pub_.publish(msg);
+        break;
 
     }
-    msg.header.stamp = ros::Time::now();
-    mav_config_pub_.publish(msg);
 //     mav_comm_driver::ModeConfig msg;
 //     uint i;
 
@@ -1267,26 +1507,19 @@ void FMAVStatusPanel::checkConnection(){
 
         upload_to_mav_ -> setEnabled(false);
         download_from_mav_ -> setEnabled(false);
-	    throttle_enable_ -> setEnabled(false);
+	    // throttle_enable_ -> setEnabled(false);
         if(is_throttle_enabled_){
-            throttle_pwm_set_ = 0;
-            throttle_set_spin_ -> setValue(throttle_pwm_set_);
+            // throttle_pwm_set_ = 0;
+            // throttle_set_spin_ -> setValue(throttle_pwm_set_);
             is_throttle_enabled_ = false;
-            throttle_enable_ -> setText("启动");
+            // throttle_enable_ -> setText("启动");
         }
-#ifdef FOUR_WING
-        throttle_2_enable_ -> setEnabled(false);
-        if(is_throttle_2_enabled_){
-            throttle_2_pwm_set_ = 0;
-            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
-            is_throttle_2_enabled_ = false;
-            throttle_2_enable_ -> setText("启动");
-        }
-#endif
 
         boxLayoutVisible(time_layout_, false);
         if(joystick_send_timer_ -> isActive())
             joystick_send_timer_ -> stop();
+        
+        initPosePublish();
     }
     else{
         mav_down_msg_cnt_prev_ = mav_down_msg_cnt_;
@@ -1297,10 +1530,7 @@ void FMAVStatusPanel::setParamMode(int index){
 
     boxLayoutVisible(right_servo_set_layout_, false);
     boxLayoutVisible(left_servo_set_layout_, false);
-    boxLayoutVisible(throttle_set_layout_, false);
-#ifdef FOUR_WING
-    boxLayoutVisible(throttle_2_set_layout_, false);
-#endif
+    boxLayoutVisible(throttle_layout_, false);
 #ifdef TWO_WING
     boxLayoutVisible(mid_servo_set_layout_, false);
     boxLayoutVisible(climb_set_layout_, false);
@@ -1315,16 +1545,16 @@ void FMAVStatusPanel::setParamMode(int index){
     if(joystick_send_timer_ -> isActive())
         joystick_send_timer_ -> stop();
     
-    if(is_throttle_enabled_){
-        if(is_connected)
-            enableThrottle();
-        else{
-            throttle_pwm_set_ = 0;
-            throttle_set_spin_ -> setValue(throttle_pwm_set_);
-            is_throttle_enabled_ = false;
-            throttle_enable_ -> setText("启动");
-        }
-    }
+    // if(is_throttle_enabled_){
+    //     if(is_connected)
+    //         enableThrottle();
+    //     else{
+    //         throttle_pwm_set_ = 0;
+    //         throttle_set_spin_ -> setValue(throttle_pwm_set_);
+    //         is_throttle_enabled_ = false;
+    //         throttle_enable_ -> setText("启动");
+    //     }
+    // }
 
 #ifdef FOUR_WING
     throttle_set_slider_ -> setRange(0, THROTTLE_MAX);
@@ -1332,16 +1562,16 @@ void FMAVStatusPanel::setParamMode(int index){
 #endif
 
 #ifdef FOUR_WING
-    if(is_throttle_2_enabled_){
-        if(is_connected)
-            enableThrottle2();
-        else{
-            throttle_2_pwm_set_ = 0;
-            throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
-            is_throttle_2_enabled_ = false;
-            throttle_2_enable_ -> setText("启动");
-        }
-    }
+    // if(is_throttle_2_enabled_){
+    //     if(is_connected)
+    //         enableThrottle2();
+    //     else{
+    //         throttle_2_pwm_set_ = 0;
+    //         throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
+    //         is_throttle_2_enabled_ = false;
+    //         throttle_2_enable_ -> setText("启动");
+    //     }
+    // }
 #endif
 
     flight_control_joysitck_ -> setVisible(false);
@@ -1359,10 +1589,7 @@ void FMAVStatusPanel::setParamMode(int index){
             boxLayoutVisible(climb_set_layout_, true);
 #endif
             boxLayoutVisible(left_servo_set_layout_, true);
-            boxLayoutVisible(throttle_set_layout_, true);
-#ifdef FOUR_WING
-            boxLayoutVisible(throttle_2_set_layout_, true);
-#endif
+            boxLayoutVisible(throttle_layout_, true);
             break;
         
         case(sensor_alignment_mode):
@@ -1412,7 +1639,7 @@ void FMAVStatusPanel::getParamValues(){
 #endif
     
 
-    pid_id_set_ = pid_id_btn_group_ -> checkedId();
+    // pid_id_set_ = pid_id_btn_group_ -> checkedId();  // in order to keep value before changing axis
 
     pid_ext_set_[pid_id_set_][0] = pid_ext_p_edit_ -> text().toFloat();
     pid_ext_set_[pid_id_set_][1] = pid_ext_i_edit_ -> text().toFloat();
@@ -1498,111 +1725,68 @@ void FMAVStatusPanel::setPanelValues(){
 
 void FMAVStatusPanel::changeTuningAxis(int btn_id){
 
+    getParamValues();
     pid_id_set_ = btn_id;
     setPanelValues();
 }
 
-void FMAVStatusPanel::enableThrottle(){
-
-    ros::Rate r(10);
-    uint count;
-    getParamValues();
-
-    if(is_throttle_enabled_){
-	    is_throttle_enabled_ = false;
-        count = 0;
-        do{
-            if(count >= 100){
-                is_throttle_enabled_ = true;
-                QMessageBox::critical(this, "错误", "发送超时");
-                return;
-            }
-            uploadConfig();
-            ros::spinOnce();
-            r.sleep();
-            count ++;
-        }while(cur_throttle_pwm_ != 0);
-        throttle_enable_ -> setText("启动");
+void FMAVStatusPanel::enableThrottleDebug(){
+    
+    if(is_debugging_servo_throttle_){
+        is_debugging_servo_throttle_ = false;
+        if(is_connected) uploadConfig();
+        throttle_debug_enable_ -> setText("电机解锁(接管)");
     }
     else{
-        // if(throttle_pwm_set_ == 0){
-        //     QMessageBox::warning(this, "警告", "当前设置油门量为0");
-        //     return;
-        // }
-
-        is_throttle_enabled_ = true;
-        // count = 0;
-        // do {
-        //     if(count >= 100){
-        //         is_throttle_enabled_ = false;
-        //         QMessageBox::critical(this, "错误", "发送超时");
-        //         return;
-        //     }
-        //     uploadConfig();
-        //     ros::spinOnce();
-        //     r.sleep();
-        //     count ++;
-        // } while(cur_throttle_pwm_ != throttle_pwm_set_);
-        uploadConfig();
-
-        throttle_enable_ -> setText("急停");
+        is_debugging_servo_throttle_ = true;
+        if(is_connected) uploadConfig();
+        throttle_debug_enable_ -> setText("停止调试");
     }
 
-    if(is_throttle_enabled_ && param_mode_ == flight_mode)
-        joystick_send_timer_ -> start(100);
-    else if(joystick_send_timer_ -> isActive())
-        joystick_send_timer_ -> stop();
+        // ros::Rate r(10);
+    // uint count;
+    // getParamValues();
+
+    // if(is_throttle_2_enabled_){
+	//     is_throttle_2_enabled_ = false;
+    //     count = 0;
+    //     do{
+    //         if(count >= 100){
+    //             is_throttle_2_enabled_ = true;
+    //             QMessageBox::critical(this, "错误", "发送超时");
+    //             return;
+    //         }
+    //         uploadConfig();
+    //         ros::spinOnce();
+    //         r.sleep();
+    //         count ++;
+    //     }while(cur_throttle_2_pwm_ != 0);
+    //     throttle_2_enable_ -> setText("启动");
+    // }
+    // else{
+    //     // if(throttle_pwm_set_ == 0){
+    //     //     QMessageBox::warning(this, "警告", "当前设置油门量为0");
+    //     //     return;
+    //     // }
+
+    //     is_throttle_2_enabled_ = true;
+    //     // count = 0;
+    //     // do {
+    //     //     if(count >= 100){
+    //     //         is_throttle_2_enabled_ = false;
+    //     //         QMessageBox::critical(this, "错误", "发送超时");
+    //     //         return;
+    //     //     }
+    //     //     uploadConfig();
+    //     //     ros::spinOnce();
+    //     //     r.sleep();
+    //     //     count ++;
+    //     // } while(cur_throttle_2_pwm_ != throttle_2_pwm_set_);
+	//     uploadConfig();
+    //     throttle_2_enable_ -> setText("急停");
+    // }
     
 }
-
-#ifdef FOUR_WING
-void FMAVStatusPanel::enableThrottle2(){
-
-    ros::Rate r(10);
-    uint count;
-    getParamValues();
-
-    if(is_throttle_2_enabled_){
-	    is_throttle_2_enabled_ = false;
-        count = 0;
-        do{
-            if(count >= 100){
-                is_throttle_2_enabled_ = true;
-                QMessageBox::critical(this, "错误", "发送超时");
-                return;
-            }
-            uploadConfig();
-            ros::spinOnce();
-            r.sleep();
-            count ++;
-        }while(cur_throttle_2_pwm_ != 0);
-        throttle_2_enable_ -> setText("启动");
-    }
-    else{
-        // if(throttle_pwm_set_ == 0){
-        //     QMessageBox::warning(this, "警告", "当前设置油门量为0");
-        //     return;
-        // }
-
-        is_throttle_2_enabled_ = true;
-        // count = 0;
-        // do {
-        //     if(count >= 100){
-        //         is_throttle_2_enabled_ = false;
-        //         QMessageBox::critical(this, "错误", "发送超时");
-        //         return;
-        //     }
-        //     uploadConfig();
-        //     ros::spinOnce();
-        //     r.sleep();
-        //     count ++;
-        // } while(cur_throttle_2_pwm_ != throttle_2_pwm_set_);
-	    uploadConfig();
-        throttle_2_enable_ -> setText("急停");
-    }
-    
-}
-#endif
 
 void FMAVStatusPanel::joystickMove(float x, float y){
 
@@ -1721,31 +1905,87 @@ void FMAVStatusPanel::viconReceive(const geometry_msgs::TransformStamped::ConstP
 }
 
 // 显示消息
-void FMAVStatusPanel::displayMessage(const QString& msg, const QColor &color){
+void FMAVStatusPanel::displayMessage(const message_t &msg, const bool is_clear){
 
-    if(is_displaying_msg){
+    // if(is_displaying_msg){
+    //     if(message_display_timer_ -> isActive())
+    //         message_display_timer_ -> stop();
+    // }
+
+    // is_displaying_msg = true;
+    // message_display_timer_ -> start(1000); //T = 1000ms
+    // ROS_INFO_STREAM(msg.text);
+    // //设置消息
+    // QPalette palette;
+    // mode_label_ -> setText(msg.text.c_str());
+    // palette.setColor(QPalette::Background, msg.color);
+    // mode_label_ -> setPalette(palette);
+    // palette.setColor(QPalette::WindowText,
+    //                  QColor(
+    //                     255 - msg.color.red(),
+    //                     255 - msg.color.green(),
+    //                     255 - msg.color.blue()
+    //                 ));
+    // mode_label_ -> setPalette(palette);
+
+    if(!is_displaying_msg || is_clear){
+
+        while(!display_message_queue_.empty())
+            display_message_queue_.pop();
         if(message_display_timer_ -> isActive())
             message_display_timer_ -> stop();
-    }
+        
+        is_displaying_msg = true;
+        message_display_timer_ -> start(msg.time);
+        ROS_INFO_STREAM(msg.text);
 
-    is_displaying_msg = true;
-    message_display_timer_ -> start(1000); //T = 1000ms
-    ROS_INFO_STREAM(msg.toStdString());
-    //设置消息
-    QPalette palette;
-    mode_label_ -> setText(msg);
-    palette.setColor(QPalette::Background, color);
-    mode_label_ -> setPalette(palette);
-    palette.setColor(QPalette::WindowText, QColor(255 - color.red(), 255 - color.green(), 255 - color.blue()));
-    mode_label_ -> setPalette(palette);
+        //设置消息
+        QPalette palette;
+        mode_label_ -> setText(msg.text.c_str());
+        palette.setColor(QPalette::Background, msg.color);
+        mode_label_ -> setPalette(palette);
+        palette.setColor(QPalette::WindowText,
+                        QColor(
+                            255 - msg.color.red(),
+                            255 - msg.color.green(),
+                            255 - msg.color.blue()
+                        ));
+        mode_label_ -> setPalette(palette);
+    }
+    else{
+        display_message_queue_.push(msg);
+    }
 
 }
 
 void FMAVStatusPanel::endMessage(){
     
     message_display_timer_ -> stop();
-    is_displaying_msg = false;
-    displayStatus();
+    if(display_message_queue_.empty()){
+        is_displaying_msg = false;
+        displayStatus();
+    }
+    else{
+        message_t msg = display_message_queue_.front();
+        display_message_queue_.pop();
+        is_displaying_msg = true;
+        message_display_timer_ -> start(msg.time);
+        ROS_INFO_STREAM(msg.text);
+
+        //设置消息
+        QPalette palette;
+        mode_label_ -> setText(msg.text.c_str());
+        palette.setColor(QPalette::Background, msg.color);
+        mode_label_ -> setPalette(palette);
+        palette.setColor(QPalette::WindowText,
+                        QColor(
+                            255 - msg.color.red(),
+                            255 - msg.color.green(),
+                            255 - msg.color.blue()
+                        ));
+        mode_label_ -> setPalette(palette);
+    }
+
     return;
 }
 
@@ -1805,7 +2045,14 @@ void FMAVStatusPanel::calibrateMag(){
 
             is_calibrating_mag = true;
             mag_calib_start_btn_ -> setText("中止磁力计校准");
-            displayMessage("校准磁力计中...", Qt::yellow);
+            displayMessage(
+                message_t{
+                    .text="校准磁力计中...",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+            );
 
         }
         else{
@@ -1928,18 +2175,18 @@ void FMAVStatusPanel::load( const rviz::Config& config )
     config.mapGetValue("PIDSetValueYaw", &v_tmp); pid_setvalue_[0] = v_tmp.toFloat();
     config.mapGetValue("PIDSetValuePitch", &v_tmp); pid_setvalue_[1] = v_tmp.toFloat();
     config.mapGetValue("PIDSetValueRoll", &v_tmp); pid_setvalue_[2] = v_tmp.toFloat();
-    config.mapGetValue("PIDExtUplimitYaw", &v_tmp); pid_ext_uplimit_[0] = v_tmp.toFloat();
-    config.mapGetValue("PIDExtUplimitPitch", &v_tmp); pid_ext_uplimit_[1] = v_tmp.toFloat();
-    config.mapGetValue("PIDExtUplimitRoll", &v_tmp); pid_ext_uplimit_[2] = v_tmp.toFloat();
-    config.mapGetValue("PIDExtLowlimitYaw", &v_tmp); pid_ext_lowlimit_[0] = v_tmp.toFloat();
-    config.mapGetValue("PIDExtLowlimitPitch", &v_tmp); pid_ext_lowlimit_[1] = v_tmp.toFloat();
-    config.mapGetValue("PIDExtLowlimitRoll", &v_tmp); pid_ext_lowlimit_[2] = v_tmp.toFloat();
-    config.mapGetValue("PIDIntUplimitYaw", &v_tmp); pid_int_uplimit_[0] = v_tmp.toUInt();
-    config.mapGetValue("PIDIntUplimitPitch", &v_tmp); pid_int_uplimit_[1] = v_tmp.toUInt();
-    config.mapGetValue("PIDIntUplimitRoll", &v_tmp); pid_int_uplimit_[2] = v_tmp.toUInt();
-    config.mapGetValue("PIDIntLowlimitYaw", &v_tmp); pid_int_lowlimit_[0] = v_tmp.toUInt();
-    config.mapGetValue("PIDIntLowlimitPitch", &v_tmp); pid_int_lowlimit_[1] = v_tmp.toUInt();
-    config.mapGetValue("PIDIntLowlimitRoll", &v_tmp); pid_int_lowlimit_[2] = v_tmp.toUInt();
+    config.mapGetValue("PIDExtUplimitYaw", &v_tmp); pid_ext_uplimit_[0] = v_tmp.toInt();
+    config.mapGetValue("PIDExtUplimitPitch", &v_tmp); pid_ext_uplimit_[1] = v_tmp.toInt();
+    config.mapGetValue("PIDExtUplimitRoll", &v_tmp); pid_ext_uplimit_[2] = v_tmp.toInt();
+    config.mapGetValue("PIDExtLowlimitYaw", &v_tmp); pid_ext_lowlimit_[0] = v_tmp.toInt();
+    config.mapGetValue("PIDExtLowlimitPitch", &v_tmp); pid_ext_lowlimit_[1] = v_tmp.toInt();
+    config.mapGetValue("PIDExtLowlimitRoll", &v_tmp); pid_ext_lowlimit_[2] = v_tmp.toInt();
+    config.mapGetValue("PIDIntUplimitYaw", &v_tmp); pid_int_uplimit_[0] = v_tmp.toInt();
+    config.mapGetValue("PIDIntUplimitPitch", &v_tmp); pid_int_uplimit_[1] = v_tmp.toInt();
+    config.mapGetValue("PIDIntUplimitRoll", &v_tmp); pid_int_uplimit_[2] = v_tmp.toInt();
+    config.mapGetValue("PIDIntLowlimitYaw", &v_tmp); pid_int_lowlimit_[0] = v_tmp.toInt();
+    config.mapGetValue("PIDIntLowlimitPitch", &v_tmp); pid_int_lowlimit_[1] = v_tmp.toInt();
+    config.mapGetValue("PIDIntLowlimitRoll", &v_tmp); pid_int_lowlimit_[2] = v_tmp.toInt();
 
     config.mapGetValue("SensorMagOffsetX", &v_tmp); mag_offset_set_[0] = v_tmp.toDouble();
     config.mapGetValue("SensorMagOffsetY", &v_tmp); mag_offset_set_[1] = v_tmp.toDouble();

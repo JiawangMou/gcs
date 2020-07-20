@@ -13,7 +13,8 @@
   
   <node name="mav_comm_driver_mfp_node" pkg="mav_comm_driver" type="mav_comm_driver_mfp_node" output="screen"/>
   
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen" required="true" />
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_teleop_commander)/rviz/gcs.rviz" output="screen" required="true" /> -->
+  <node name="rqt" pkg="rqt_gui" type="rqt_gui" output="screen" required="true" />
 
   <node pkg="tf" type="static_transform_publisher" name="bl2fm"  args="1.286e-3 -0.551e-3 41.911e-3 0 0 0 /base_link /flapping_mechanism 50" />
   <node pkg="tf" type="static_transform_publisher" name="fm2lle"  args="0 13.95e-3 18.9913e-3 0 0 0 /flapping_mechanism /left_leading_edge 50" />
