@@ -126,6 +126,7 @@ protected:
     // 模式显示控件
     QLabel* mode_front_label_;
     QLabel* mode_label_;
+    QLabel* is_acc_healthy_label_;
     
     // 时间显示控件
     QHBoxLayout* time_layout_;
@@ -175,6 +176,7 @@ protected:
     float cur_pitch_rate_;
     float cur_yaw_rate_;
     float cur_mag_raw_[3];
+    float cur_acc_raw_[3];
     float cur_voltage_;
     uint16_t cur_mid_servo_pwm_;
     uint16_t cur_left_servo_pwm_;
@@ -359,13 +361,15 @@ protected:
 
     // ROS节点句柄
     ros::NodeHandle nh_;
-    ros::Publisher vis_pub_;
     ros::Publisher mav_config_pub_;
     ros::Publisher mag_calib_vis_pub_;
     ros::Subscriber mav_down_sub_;
     ros::Subscriber joystick_sub_;
     ros::Subscriber vicon_sub_;
     tf::TransformBroadcaster tf_pub_;
+
+    //ROS节点句柄（调试）
+    ros::Publisher acc_vis_pub_;
 
     QTimer* joystick_send_timer_;
     QTimer* message_display_timer_;

@@ -5,7 +5,7 @@
 #include <tf/transform_datatypes.h>
 
 #include <mav_comm_driver/MFPUnified.h>
-
+#include <fstream>
 
 serial::Serial ros_ser;
 
@@ -13,10 +13,14 @@ serial::Serial ros_ser;
 static const uint8_t send_frame_head[] = {0xaa, 0xaf};
 
 // PID Debug
-ros::Publisher int_pid_pub_[3]; //0:yaw 1:pitch 2:roll
-ros::Publisher int_pid_pub_sum_;
-ros::Publisher ext_pid_pub_[3]; //0:yaw 1:pitch 2:roll
-ros::Publisher ext_pid_pub_sum_;
+ros::Publisher int_pid_pub[3]; //0:yaw 1:pitch 2:roll
+ros::Publisher int_pid_pub_sum;
+ros::Publisher ext_pid_pub[3]; //0:yaw 1:pitch 2:roll
+ros::Publisher ext_pid_pub_sum;
+
+// Pose Debug
+ros::Publisher pose_pub;
+std::ofstream fout;
 
 using namespace std;
 
@@ -49,7 +53,7 @@ void send_config(const mav_comm_driver::MFPUnified::ConstPtr& msg){
 }
 
 
-void SendPIDDebug(vector<uint8_t> &data){
+void send_PID_debug(vector<uint8_t> &data){
 
     geometry_msgs::Vector3 pid_debug_msg;
     switch(data[2]){
@@ -58,12 +62,12 @@ void SendPIDDebug(vector<uint8_t> &data){
             pid_debug_msg.x = *((float*)&(data[3]));
             pid_debug_msg.y = *((float*)&(data[7]));
             pid_debug_msg.z = *((float*)&(data[11]));
-            ext_pid_pub_[2].publish(pid_debug_msg);
+            ext_pid_pub[2].publish(pid_debug_msg);
             //pitch
             pid_debug_msg.x = *((float*)&(data[15]));
             pid_debug_msg.y = *((float*)&(data[19]));
             pid_debug_msg.z = *((float*)&(data[23]));
-            ext_pid_pub_[1].publish(pid_debug_msg);
+            ext_pid_pub[1].publish(pid_debug_msg);
 
         break;
         
@@ -72,12 +76,12 @@ void SendPIDDebug(vector<uint8_t> &data){
             pid_debug_msg.x = *((float*)&(data[3]));
             pid_debug_msg.y = *((float*)&(data[7]));
             pid_debug_msg.z = *((float*)&(data[11]));
-            ext_pid_pub_[0].publish(pid_debug_msg);
+            ext_pid_pub[0].publish(pid_debug_msg);
             //roll
             pid_debug_msg.x = *((float*)&(data[15]));
             pid_debug_msg.y = *((float*)&(data[19]));
             pid_debug_msg.z = *((float*)&(data[23]));
-            int_pid_pub_[2].publish(pid_debug_msg);
+            int_pid_pub[2].publish(pid_debug_msg);
         break;
         
         case(0x02): // int(pitchp,pitchi,pitchd,yawp,yawi,yawd)
@@ -85,27 +89,57 @@ void SendPIDDebug(vector<uint8_t> &data){
             pid_debug_msg.x = *((float*)&(data[3]));
             pid_debug_msg.y = *((float*)&(data[7]));
             pid_debug_msg.z = *((float*)&(data[11]));
-            int_pid_pub_[1].publish(pid_debug_msg);
+            int_pid_pub[1].publish(pid_debug_msg);
             //yaw
             pid_debug_msg.x = *((float*)&(data[15]));
             pid_debug_msg.y = *((float*)&(data[19]));
             pid_debug_msg.z = *((float*)&(data[23]));
-            int_pid_pub_[0].publish(pid_debug_msg);
+            int_pid_pub[0].publish(pid_debug_msg);
 
 
             // // each sum (x: roll sum, y: pitch sum, z: yaw sum)
             // pid_debug_msg.x = (int16_t)(data[9] << 8 | data[10]);
             // pid_debug_msg.y = (int16_t)(data[17] << 8 | data[18]);
             // pid_debug_msg.z = (int16_t)(data[25] << 8 | data[26]);
-            // ext_pid_pub_sum_.publish(pid_debug_msg);
+            // ext_pid_pub_sum.publish(pid_debug_msg);
 
             // // each sum (x: roll sum, y: pitch sum, z: yaw sum)
             // pid_debug_msg.x = (int16_t)(data[9] << 8 | data[10]);
             // pid_debug_msg.y = (int16_t)(data[17] << 8 | data[18]);
             // pid_debug_msg.z = (int16_t)(data[25] << 8 | data[26]);
-            // int_pid_pub_sum_.publish(pid_debug_msg);
+            // int_pid_pub_sum.publish(pid_debug_msg);
         break;
     }
+}
+
+void send_and_save_pose_debug(vector<uint8_t> &data){
+
+    geometry_msgs::Vector3 msg;
+    
+    // each sum (x: roll sum, y: pitch sum, z: yaw sum)
+    msg.x = - ((int16_t)(data[2] << 8 | data[3])) / 100.0;
+    msg.y = ((int16_t)(data[4] << 8 | data[5])) / 100.0;
+    msg.z = - ((int16_t)(data[6] << 8 | data[7])) / 100.0;
+    uint32_t time = ((uint32_t)data[14] << 24 | (uint32_t)data[15] << 16 | (uint32_t)data[16] << 8 | (uint32_t)data[17]);
+    pose_pub.publish(msg);
+
+    fout << msg.x << "," << msg.y << "," << msg.z << "," << time << std::endl;
+
+}
+
+void send_rate_debug(vector<uint8_t> &data){
+
+    geometry_msgs::Vector3 msg;
+    
+    // each sum (x: roll sum, y: pitch sum, z: yaw sum)
+    msg.x = - ((int16_t)(data[2] << 8 | data[3])) / 100.0;
+    msg.y = ((int16_t)(data[4] << 8 | data[5])) / 100.0;
+    msg.z = - ((int16_t)(data[6] << 8 | data[7])) / 100.0;
+    uint32_t time = ((uint32_t)data[14] << 24 | (uint32_t)data[15] << 16 | (uint32_t)data[16] << 8 | (uint32_t)data[17]);
+    pose_pub.publish(msg);
+
+    fout << msg.x << "," << msg.y << "," << msg.z << "," << time << std::endl;
+
 }
 
 
@@ -120,14 +154,18 @@ int main(int argc, char** argv){
     ros::Publisher mav_data_pub = n.advertise<mav_comm_driver::MFPUnified>("/received_data", 500);
 
     //PID Debug
-    ext_pid_pub_[0] = n.advertise<geometry_msgs::Vector3>("/pid_ext_yaw", 500);
-    ext_pid_pub_[1] = n.advertise<geometry_msgs::Vector3>("/pid_ext_pitch", 500);
-    ext_pid_pub_[2] = n.advertise<geometry_msgs::Vector3>("/pid_ext_roll", 500);
-    // ext_pid_pub_sum_ = n.advertise<geometry_msgs::Vector3>("/pid_ext_sum", 500);
-    int_pid_pub_[0] = n.advertise<geometry_msgs::Vector3>("/pid_int_yaw", 500);
-    int_pid_pub_[1] = n.advertise<geometry_msgs::Vector3>("/pid_int_pitch", 500);
-    int_pid_pub_[2] = n.advertise<geometry_msgs::Vector3>("/pid_int_roll", 500);
-    // int_pid_pub_sum_ = n.advertise<geometry_msgs::Vector3>("/pid_int_sum", 500);
+    ext_pid_pub[0] = n.advertise<geometry_msgs::Vector3>("/pid_ext_yaw", 500);
+    ext_pid_pub[1] = n.advertise<geometry_msgs::Vector3>("/pid_ext_pitch", 500);
+    ext_pid_pub[2] = n.advertise<geometry_msgs::Vector3>("/pid_ext_roll", 500);
+    // ext_pid_pub_sum = n.advertise<geometry_msgs::Vector3>("/pid_ext_sum", 500);
+    int_pid_pub[0] = n.advertise<geometry_msgs::Vector3>("/pid_int_yaw", 500);
+    int_pid_pub[1] = n.advertise<geometry_msgs::Vector3>("/pid_int_pitch", 500);
+    int_pid_pub[2] = n.advertise<geometry_msgs::Vector3>("/pid_int_roll", 500);
+    // int_pid_pub_sum = n.advertise<geometry_msgs::Vector3>("/pid_int_sum", 500);
+
+    //Pose Debug
+    pose_pub = n.advertise<geometry_msgs::Vector3>("/pose_debug", 500);
+    fout.open("pose_save.txt");
 
     string port = "";
     n.param<std::string>("/mav_driver/port", port, "/dev/ttyACM0");
@@ -195,7 +233,9 @@ int main(int argc, char** argv){
                     rec_msg.length = serial_data[1];
                     rec_msg.data = serial_data;
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_PID_DEBUG)
-                        SendPIDDebug(serial_data);
+                        send_PID_debug(serial_data);
+                    if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_STATUS)
+                        send_and_save_pose_debug(serial_data);
                     mav_data_pub.publish(rec_msg);
 
                 }
@@ -203,4 +243,6 @@ int main(int argc, char** argv){
         }
         loop_rate.sleep();
     }
+
+    fout.close();
 }

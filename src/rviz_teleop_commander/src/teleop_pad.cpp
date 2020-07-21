@@ -49,6 +49,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
         pid_int_uplimit_[i] = 0;
         pid_int_lowlimit_[i] = 0;
         pid_setvalue_[i] = 0.0;
+        cur_acc_raw_[i] = 0.0;
+        cur_mag_raw_[i] = 0.0;
     }
     pid_freq_ = 0;
     pid_id_set_ = 0;
@@ -104,6 +106,11 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mode_label_ -> setFont(QFont("Timers", 18, QFont::Normal));
     mode_label_ -> setAutoFillBackground(true);
     mode_layout -> addWidget(mode_label_);
+    is_acc_healthy_label_ = new QLabel("●");
+    is_acc_healthy_label_ -> setAlignment(Qt::AlignCenter);
+    is_acc_healthy_label_ -> setFont(QFont("Timers", 18, QFont::Normal));
+    is_acc_healthy_label_ -> setMaximumWidth(25);
+    mode_layout -> addWidget(is_acc_healthy_label_);
 
     // 时间
     time_layout_ = new QHBoxLayout();
@@ -122,6 +129,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     roll_front_label_ -> setAlignment(Qt::AlignCenter);
     roll_layout -> addWidget(roll_front_label_);
     roll_label_ = new QLabel("-");
+    roll_label_ -> setFont(QFont("Timers", 16, QFont::Normal));
     roll_label_ -> setAlignment(Qt::AlignCenter);
     roll_label_ -> setFrameShape(QFrame::Panel);
     roll_label_ -> setFrameShadow(QFrame::Sunken);
@@ -140,6 +148,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     pitch_front_label_ -> setAlignment(Qt::AlignCenter);
     pitch_layout -> addWidget(pitch_front_label_);
     pitch_label_ = new QLabel("-");
+    pitch_label_ -> setFont(QFont("Timers", 16, QFont::Normal));
     pitch_label_ -> setAlignment(Qt::AlignCenter);
     pitch_label_ -> setFrameShape(QFrame::Panel);
     pitch_label_ -> setFrameShadow(QFrame::Sunken);
@@ -158,6 +167,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     yaw_front_label_ -> setAlignment(Qt::AlignCenter);
     yaw_layout -> addWidget(yaw_front_label_);
     yaw_label_ = new QLabel("-");
+    yaw_label_ -> setFont(QFont("Timers", 16, QFont::Normal));
     yaw_label_ -> setAlignment(Qt::AlignCenter);
     yaw_label_ -> setFrameShape(QFrame::Panel);
     yaw_label_ -> setFrameShadow(QFrame::Sunken);
@@ -609,9 +619,10 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     setLayout( layout );
 
     mav_down_sub_ = nh_.subscribe("/received_data", 500, &FMAVStatusPanel::updateMAVStatus, this);
-    vis_pub_ = nh_.advertise< visualization_msgs::Marker>("/mav_vis", 500);
     mav_config_pub_ = nh_.advertise<mav_comm_driver::MFPUnified>("/mav_download", 500);
     mag_calib_vis_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/mag_calib_vis", 500);
+
+    acc_vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/acc_vis", 500);
 
     //飞行模式手柄下发计时器
     joystick_send_timer_ = new QTimer( this );
@@ -680,7 +691,10 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
     mav_down_msg_cnt_ ++;
     
     QPalette palette;
+    visualization_msgs::Marker marker;
+    geometry_msgs::Point pt_tmp;
     char numstr[30];
+    static uint acc_count = 0, acc_healthy_count = 0;
 
 
     mode_id_ = msg -> msg_id;
@@ -696,8 +710,8 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 download_from_mav_ -> setEnabled(true);
             }
 
-            cur_roll_ = - (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
-            cur_pitch_ = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 100.0;
+            cur_roll_ = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
+            cur_pitch_ = - (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 100.0;
             cur_yaw_ = - (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
 
             // update display values
@@ -728,6 +742,9 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             cur_mag_raw_[0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]);
             cur_mag_raw_[1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]);
             cur_mag_raw_[2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]);
+            cur_acc_raw_[0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 2000.0;
+            cur_acc_raw_[1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 2000.0;
+            cur_acc_raw_[2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 2000.0;
 
             // update display values
             sprintf(numstr, "%.2f", cur_roll_rate_);
@@ -745,11 +762,10 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 mag_calib_data_[2](mag_data_cnt_) = cur_mag_raw_[2];
                 mag_data_cnt_ ++;
 
-                geometry_msgs::Point mag_pt;
-                mag_pt.x = cur_mag_raw_[0] / MAG_CALIB_POINT_SCALE;
-                mag_pt.y = cur_mag_raw_[1] / MAG_CALIB_POINT_SCALE;
-                mag_pt.z = cur_mag_raw_[2] / MAG_CALIB_POINT_SCALE;
-                mag_calib_vis_pts_.points.push_back(mag_pt);
+                pt_tmp.x = cur_mag_raw_[0] / MAG_CALIB_POINT_SCALE;
+                pt_tmp.y = cur_mag_raw_[1] / MAG_CALIB_POINT_SCALE;
+                pt_tmp.z = cur_mag_raw_[2] / MAG_CALIB_POINT_SCALE;
+                mag_calib_vis_pts_.points.push_back(pt_tmp);
                 mag_calib_vis_msg_.markers[0] = mag_calib_vis_pts_;
                 mag_calib_vis_pub_.publish(mag_calib_vis_msg_);
 
@@ -807,6 +823,38 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                     mag_calib_start_btn_ -> setText("校准磁力计");
                 }
             }
+
+            if(msg -> data[20] == 0x00){
+                palette.setColor(QPalette::WindowText, QColor(255, 0, 0));  //red
+            }
+            else{
+                palette.setColor(QPalette::WindowText, QColor(0, 255, 0));  //green
+
+                marker.header.frame_id = "base_link";
+                marker.id = 101;
+                marker.type = visualization_msgs::Marker::ARROW;
+                marker.action = visualization_msgs::Marker::MODIFY;
+                marker.lifetime = ros::Duration(0.5);
+                marker.color.a = 0.8;
+                marker.color.r = 1; marker.color.g = 0; marker.color.b = 0;
+                marker.scale.x = 0.01; marker.scale.y = 0.02; marker.scale.z = 0.03;
+                marker.points.clear();
+                pt_tmp.x = pt_tmp.y = pt_tmp.z = 0.0;
+                marker.points.push_back(pt_tmp);
+                pt_tmp.x = - cur_acc_raw_[0] / 7.0; pt_tmp.y = - cur_acc_raw_[1] / 7.0; pt_tmp.z = - cur_acc_raw_[2] / 7.0;
+                marker.points.push_back(pt_tmp);
+                acc_vis_pub_.publish(marker);
+
+                acc_healthy_count ++;
+            }
+            acc_count ++;
+            if(acc_count == 100){
+                ROS_INFO_STREAM("加速度计健康比例: " << acc_healthy_count * 100.0 / acc_count << "%");
+                acc_count = 0;
+                acc_healthy_count = 0;
+            }
+            is_acc_healthy_label_ -> setPalette(palette);
+
         break;
 
         case(mav_comm_driver::MFPUnified::UP_PID1):
@@ -942,7 +990,7 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             cur_throttle_pwm_ = (uint16_t)(msg -> data[2] << 8 | msg -> data[3]);
             cur_throttle_2_pwm_ = (uint16_t)(msg -> data[4] << 8 | msg -> data[5]);
             cur_left_servo_pwm_ = (uint16_t)(msg -> data[6] << 8 | msg -> data[7]);
-            cur_right_servo_pwm_ = (uint16_t)(msg -> data[8] << 8 | msg -> data[9]);
+            cur_right_servo_pwm_ = (uint16_t)(msg -> data[10] << 8 | msg -> data[11]);
 
             sprintf(numstr, "%u", cur_left_servo_pwm_);
             left_servo_label_ -> setText(numstr);
@@ -1140,9 +1188,9 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
 
         case servo_debug_mode:
             msg.msg_id = mav_comm_driver::MFPUnified::DOWN_MOTOR;
-            msg.length = 10;
+            msg.length = 12;
             msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_MOTOR);
-            msg.data.push_back(10);
+            msg.data.push_back(12);
 
             if(write_flash_checkbox_ -> isChecked())
                 msg.data.push_back(0x01);
@@ -1165,6 +1213,8 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
 #endif
             msg.data.push_back(left_servo_pwm_set_ >> 8);
             msg.data.push_back(left_servo_pwm_set_);
+            msg.data.push_back((uint8_t)(1520u >> 8));
+            msg.data.push_back((uint8_t)1520u);
             msg.data.push_back(right_servo_pwm_set_ >> 8);
             msg.data.push_back(right_servo_pwm_set_);
 
@@ -1514,6 +1564,8 @@ void FMAVStatusPanel::checkConnection(){
             is_throttle_enabled_ = false;
             // throttle_enable_ -> setText("启动");
         }
+        
+        voltage_label_ -> setText("0.0 V");
 
         boxLayoutVisible(time_layout_, false);
         if(joystick_send_timer_ -> isActive())
