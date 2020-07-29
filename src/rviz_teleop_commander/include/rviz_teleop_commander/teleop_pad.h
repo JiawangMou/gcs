@@ -146,6 +146,8 @@ protected:
     QLabel* pitch_rate_label_;
     QLabel* yaw_rate_front_label_;
     QLabel* yaw_rate_label_;
+    QLabel* height_front_label_;
+    QLabel* height_label_;
 #ifdef TWO_WING
     QLabel* mid_servo_label_;
     QLabel* mid_servo_front_label_;
@@ -172,6 +174,7 @@ protected:
     float cur_roll_;
     float cur_pitch_;
     float cur_yaw_;
+    float cur_height_;
     float cur_roll_rate_;
     float cur_pitch_rate_;
     float cur_yaw_rate_;

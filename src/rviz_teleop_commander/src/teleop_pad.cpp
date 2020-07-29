@@ -129,7 +129,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     roll_front_label_ -> setAlignment(Qt::AlignCenter);
     roll_layout -> addWidget(roll_front_label_);
     roll_label_ = new QLabel("-");
-    roll_label_ -> setFont(QFont("Timers", 16, QFont::Normal));
+    roll_label_ -> setFont(QFont("Timers", 13, QFont::Normal));
     roll_label_ -> setAlignment(Qt::AlignCenter);
     roll_label_ -> setFrameShape(QFrame::Panel);
     roll_label_ -> setFrameShadow(QFrame::Sunken);
@@ -148,7 +148,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     pitch_front_label_ -> setAlignment(Qt::AlignCenter);
     pitch_layout -> addWidget(pitch_front_label_);
     pitch_label_ = new QLabel("-");
-    pitch_label_ -> setFont(QFont("Timers", 16, QFont::Normal));
+    pitch_label_ -> setFont(QFont("Timers", 13, QFont::Normal));
     pitch_label_ -> setAlignment(Qt::AlignCenter);
     pitch_label_ -> setFrameShape(QFrame::Panel);
     pitch_label_ -> setFrameShadow(QFrame::Sunken);
@@ -167,7 +167,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     yaw_front_label_ -> setAlignment(Qt::AlignCenter);
     yaw_layout -> addWidget(yaw_front_label_);
     yaw_label_ = new QLabel("-");
-    yaw_label_ -> setFont(QFont("Timers", 16, QFont::Normal));
+    yaw_label_ -> setFont(QFont("Timers", 13, QFont::Normal));
     yaw_label_ -> setAlignment(Qt::AlignCenter);
     yaw_label_ -> setFrameShape(QFrame::Panel);
     yaw_label_ -> setFrameShadow(QFrame::Sunken);
@@ -180,6 +180,17 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     yaw_rate_label_ -> setFrameShape(QFrame::Panel);
     yaw_rate_label_ -> setFrameShadow(QFrame::Sunken);
     yaw_layout -> addWidget(yaw_rate_label_);
+
+    QHBoxLayout* height_layout = new QHBoxLayout();
+    height_front_label_ = new QLabel("Height: ");
+    height_front_label_ -> setAlignment(Qt::AlignCenter);
+    height_layout -> addWidget(height_front_label_);
+    height_label_ = new QLabel("-");
+    height_label_ -> setFont(QFont("Timers", 13, QFont::Normal));
+    height_label_ -> setAlignment(Qt::AlignCenter);
+    height_label_ -> setFrameShape(QFrame::Panel);
+    height_label_ -> setFrameShadow(QFrame::Sunken);
+    height_layout -> addWidget(height_label_);
 
     QVBoxLayout* servos_layout = new QVBoxLayout;
 #ifdef TWO_WING
@@ -596,6 +607,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     layout -> addLayout(roll_layout);
     layout -> addLayout(pitch_layout);
     layout -> addLayout(yaw_layout);
+    layout -> addLayout(height_layout);
     layout -> addWidget(spline_2);
     layout -> addLayout(pwm_layout);
     layout -> addWidget(spline_3);
@@ -713,6 +725,7 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             cur_roll_ = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 100.0;
             cur_pitch_ = - (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 100.0;
             cur_yaw_ = - (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
+            cur_height_ = (int32_t)(msg -> data[8] << 24 | msg -> data[9] << 16 | msg -> data[10] << 8 | msg -> data[11]) / 100.0;
 
             // update display values
             if(!is_vicon_started){
@@ -722,6 +735,8 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 pitch_label_ -> setText(numstr);
                 sprintf(numstr, "%.2f", cur_yaw_);
                 yaw_label_ -> setText(numstr);
+                sprintf(numstr, "%.2f", cur_height_);
+                height_label_ -> setText(numstr);
 
                 //send tf transform
                 tf::Transform transform;
