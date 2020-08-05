@@ -22,7 +22,7 @@ ros::Publisher ext_pid_pub_sum;
 
 // Pose Debug
 ros::Publisher pose_pub;
-ros::Publisher height_pub;
+ros::Publisher pos_pub;
 std::ofstream fout;
 
 using namespace std;
@@ -130,11 +130,13 @@ void send_and_save_pose_debug(vector<uint8_t> &data){
 
 }
 
-void send_height_debug(vector<uint8_t> &data){
+void send_pos_debug(vector<uint8_t> &data){
 
-    std_msgs::Float32 msg_height;
-    msg_height.data = (int16_t)(data[18] << 8 | data[19]) / 100.0;
-    height_pub.publish(msg_height);
+    geometry_msgs::Vector3 msg_pos;
+    msg_pos.x = (int16_t)(data[14] << 8 | data[15]) / 100.0;
+    msg_pos.y = (int16_t)(data[16] << 8 | data[17]) / 100.0;
+    msg_pos.z = (int16_t)(data[18] << 8 | data[19]) / 100.0;
+    pos_pub.publish(msg_pos);
 }
 
 void send_rate_debug(vector<uint8_t> &data){
@@ -175,7 +177,7 @@ int main(int argc, char** argv){
 
     //Pose Debug
     pose_pub = n.advertise<geometry_msgs::Vector3>("/pose_debug", 500);
-    height_pub = n.advertise<std_msgs::Float32>("/height_debug", 500);
+    pos_pub = n.advertise<geometry_msgs::Vector3>("/height_debug", 500);
     fout.open("pose_save.txt");
 
     string port = "";
@@ -248,7 +250,7 @@ int main(int argc, char** argv){
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_STATUS)
                         send_and_save_pose_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_USER_DATA1)
-                        send_height_debug(serial_data);
+                        send_pos_debug(serial_data);
                     mav_data_pub.publish(rec_msg);
 
                 }
