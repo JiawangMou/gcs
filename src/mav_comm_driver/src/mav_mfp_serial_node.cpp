@@ -16,14 +16,15 @@ static const uint8_t send_frame_head[] = {0xaa, 0xaf};
 
 // PID Debug
 ros::Publisher int_pid_pub[3]; //0:yaw 1:pitch 2:roll
-ros::Publisher int_pid_pub_sum;
 ros::Publisher ext_pid_pub[3]; //0:yaw 1:pitch 2:roll
-ros::Publisher ext_pid_pub_sum;
 
 // Pose Debug
 ros::Publisher pose_pub;
 ros::Publisher pos_pub;
 std::ofstream fout;
+
+// Height Control Debug
+ros::Publisher pwm_pub;
 
 using namespace std;
 
@@ -98,19 +99,6 @@ void send_PID_debug(vector<uint8_t> &data){
             pid_debug_msg.y = *((float*)&(data[19]));
             pid_debug_msg.z = *((float*)&(data[23]));
             int_pid_pub[0].publish(pid_debug_msg);
-
-
-            // // each sum (x: roll sum, y: pitch sum, z: yaw sum)
-            // pid_debug_msg.x = (int16_t)(data[9] << 8 | data[10]);
-            // pid_debug_msg.y = (int16_t)(data[17] << 8 | data[18]);
-            // pid_debug_msg.z = (int16_t)(data[25] << 8 | data[26]);
-            // ext_pid_pub_sum.publish(pid_debug_msg);
-
-            // // each sum (x: roll sum, y: pitch sum, z: yaw sum)
-            // pid_debug_msg.x = (int16_t)(data[9] << 8 | data[10]);
-            // pid_debug_msg.y = (int16_t)(data[17] << 8 | data[18]);
-            // pid_debug_msg.z = (int16_t)(data[25] << 8 | data[26]);
-            // int_pid_pub_sum.publish(pid_debug_msg);
         break;
     }
 }
@@ -139,18 +127,15 @@ void send_pos_debug(vector<uint8_t> &data){
     pos_pub.publish(msg_pos);
 }
 
-void send_rate_debug(vector<uint8_t> &data){
+void send_pwm_debug(vector<uint8_t> &data){
 
     geometry_msgs::Vector3 msg;
     
-    // each sum (x: roll sum, y: pitch sum, z: yaw sum)
-    msg.x = - ((int16_t)(data[2] << 8 | data[3])) / 100.0;
-    msg.y = ((int16_t)(data[4] << 8 | data[5])) / 100.0;
-    msg.z = - ((int16_t)(data[6] << 8 | data[7])) / 100.0;
-    uint32_t time = ((uint32_t)data[14] << 24 | (uint32_t)data[15] << 16 | (uint32_t)data[16] << 8 | (uint32_t)data[17]);
-    pose_pub.publish(msg);
-
-    fout << msg.x << "," << msg.y << "," << msg.z << "," << time << std::endl;
+    // x : left throttle, y : right throttle
+    msg.x = (uint16_t)(data[2] << 8 | data[3]);
+    msg.y = (uint16_t)(data[4] << 8 | data[5]);
+    msg.z = 0;
+    pwm_pub.publish(msg);
 
 }
 
@@ -177,8 +162,11 @@ int main(int argc, char** argv){
 
     //Pose Debug
     pose_pub = n.advertise<geometry_msgs::Vector3>("/pose_debug", 500);
-    pos_pub = n.advertise<geometry_msgs::Vector3>("/height_debug", 500);
+    pos_pub = n.advertise<geometry_msgs::Vector3>("/position_debug", 500);
     fout.open("pose_save.txt");
+
+    // Height Control Debug
+    pwm_pub = n.advertise<geometry_msgs::Vector3>("/height_control_debug", 500);
 
     string port = "";
     n.param<std::string>("/mav_driver/port", port, "/dev/ttyACM0");
@@ -251,6 +239,8 @@ int main(int argc, char** argv){
                         send_and_save_pose_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_USER_DATA1)
                         send_pos_debug(serial_data);
+                    if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_MOTOR)
+                        send_pwm_debug(serial_data);
                     mav_data_pub.publish(rec_msg);
 
                 }
