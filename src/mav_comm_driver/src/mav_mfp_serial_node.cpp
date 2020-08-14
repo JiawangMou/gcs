@@ -17,10 +17,12 @@ static const uint8_t send_frame_head[] = {0xaa, 0xaf};
 // PID Debug
 ros::Publisher int_pid_pub[3]; //0:yaw 1:pitch 2:roll
 ros::Publisher ext_pid_pub[3]; //0:yaw 1:pitch 2:roll
+ros::Publisher pos_pid_pub;
 
 // Pose Debug
 ros::Publisher pose_pub;
 ros::Publisher pos_pub;
+ros::Publisher vel_pub;
 std::ofstream fout;
 
 // Height Control Debug
@@ -100,6 +102,16 @@ void send_PID_debug(vector<uint8_t> &data){
             pid_debug_msg.z = *((float*)&(data[23]));
             int_pid_pub[0].publish(pid_debug_msg);
         break;
+
+        case(0x03):
+            pid_debug_msg.x = *((float*)&(data[3])) * 100.0;
+            pid_debug_msg.y = *((float*)&(data[7]));
+            pid_debug_msg.z = *((float*)&(data[11]));
+            pos_pid_pub.publish(pid_debug_msg);
+            pid_debug_msg.z = *((float*)&(data[15]));
+            pid_debug_msg.x = pid_debug_msg.y = 0.0;
+            vel_pub.publish(pid_debug_msg);
+        break;
     }
 }
 
@@ -159,10 +171,12 @@ int main(int argc, char** argv){
     int_pid_pub[1] = n.advertise<geometry_msgs::Vector3>("/pid_int_pitch", 500);
     int_pid_pub[2] = n.advertise<geometry_msgs::Vector3>("/pid_int_roll", 500);
     // int_pid_pub_sum = n.advertise<geometry_msgs::Vector3>("/pid_int_sum", 500);
+    pos_pid_pub = n.advertise<geometry_msgs::Vector3>("/pid_pos", 500);
 
     //Pose Debug
     pose_pub = n.advertise<geometry_msgs::Vector3>("/pose_debug", 500);
     pos_pub = n.advertise<geometry_msgs::Vector3>("/position_debug", 500);
+    vel_pub = n.advertise<geometry_msgs::Vector3>("/velocity_debug", 500);
     fout.open("pose_save.txt");
 
     // Height Control Debug
