@@ -31,7 +31,7 @@ Panels:
     SyncSource: ""
   - Class: rviz_teleop_commander/FMAVStatusPanel
     ClimbServoPWMSet: 0
-    LeftServoPWMSet: 1520
+    LeftServoPWMSet: 1620
     MidServoPWMSet: 160
     Name: FMAVStatusPanel
     PIDExtLowlimitPitch: 0
@@ -50,7 +50,7 @@ Panels:
     PIDExtYawSet1: 0
     PIDExtYawSet2: 0
     PIDFrequency: 200
-    PIDID: 0
+    PIDID: 1
     PIDIntLowlimitPitch: 0
     PIDIntLowlimitRoll: 0
     PIDIntLowlimitYaw: 0
@@ -58,7 +58,7 @@ Panels:
     PIDIntPitchSet1: 0
     PIDIntPitchSet2: 0
     PIDIntRollSet0: 200
-    PIDIntRollSet1: 0
+    PIDIntRollSet1: 0.5
     PIDIntRollSet2: 0
     PIDIntUplimitPitch: 0
     PIDIntUplimitRoll: 0
@@ -69,7 +69,7 @@ Panels:
     PIDSetValuePitch: 0
     PIDSetValueRoll: 0
     PIDSetValueYaw: 0
-    RightServoPWMSet: 1620
+    RightServoPWMSet: 1590
     SensorMagGainX: 221.011
     SensorMagGainY: 233.14599999999999
     SensorMagGainZ: 234.005
@@ -188,7 +188,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.91072929
+      Distance: 0.343572915
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -203,10 +203,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.724796414
+      Pitch: 0.259797275
       Target Frame: vehicle
       Value: Orbit (rviz)
-      Yaw: 3.27635884
+      Yaw: 4.63635254
     Saved: ~
 Window Geometry:
   Displays:

@@ -210,7 +210,8 @@ protected:
     static const uint8_t sensor_alignment_mode = 2;
     static const uint8_t flight_mode = 3;
     static const uint8_t tuning_mode = 4;
-    static const uint8_t vicon_test_mode = 5;
+    static const uint8_t pos_tuning_mode = 5;
+    static const uint8_t vicon_test_mode = 6;
 
 
     //舵机/电机调试模式控件
@@ -335,6 +336,13 @@ protected:
     QPushButton* pid_id_pitch_;
     QPushButton* pid_id_yaw_;
 
+    QHBoxLayout* pos_pid_id_layout_;
+    QLabel* pos_pid_id_set_front_label_;
+    QButtonGroup* pos_pid_id_btn_group_;
+    QPushButton* pid_id_x_;
+    QPushButton* pid_id_y_;
+    QPushButton* pid_id_z_;
+
     //Vicon测试模式控件
     QVBoxLayout* vicon_test_layout_;
     QPushButton* vicon_topic_refresh_btn_;
@@ -354,13 +362,19 @@ protected:
     float pid_setvalue_[3];
     float pid_ext_set_[3][3];
     float pid_int_set_[3][3];
-    int16_t pid_ext_uplimit_[3];
-    int16_t pid_ext_lowlimit_[3];
-    int16_t pid_int_uplimit_[3];
-    int16_t pid_int_lowlimit_[3];
+    float pid_ext_uplimit_[3];
+    float pid_ext_lowlimit_[3];
+    float pid_int_uplimit_[3];
+    float pid_int_lowlimit_[3];
     uint8_t pid_id_set_;        //0:yaw 1:pitch 2:roll
+
     float pid_vel_set_[3][3];   //0:x 1:y 2:z
     float pid_pos_set_[3][3];   //0:p 1:i 2:d
+    float pid_vel_uplimit_[3];
+    float pid_vel_lowlimit_[3];
+    float pid_pos_uplimit_[3];
+    float pid_pos_lowlimit_[3];
+    uint8_t pos_pid_id_set_;
 
     // ROS节点句柄
     ros::NodeHandle nh_;

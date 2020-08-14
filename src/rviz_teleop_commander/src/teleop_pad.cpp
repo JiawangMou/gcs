@@ -43,11 +43,17 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
         for(j = 0; j < 3; j ++){
             pid_ext_set_[i][j] = 0.0;
             pid_int_set_[i][j] = 0.0;
+            pid_pos_set_[i][j] = 0.0;
+            pid_vel_set_[i][j] = 0.0;
         }
         pid_ext_uplimit_[i] = 0.0;
         pid_ext_lowlimit_[i] = 0.0;
         pid_int_uplimit_[i] = 0;
         pid_int_lowlimit_[i] = 0;
+        pid_pos_uplimit_[i] = 0.0;
+        pid_pos_lowlimit_[i] = 0.0;
+        pid_vel_uplimit_[i] = 0;
+        pid_vel_lowlimit_[i] = 0;
         pid_setvalue_[i] = 0.0;
         cur_acc_raw_[i] = 0.0;
         cur_mag_raw_[i] = 0.0;
@@ -292,7 +298,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mode_sel_combo_ -> addItem("舵机/电机调试模式", servo_debug_mode);
     mode_sel_combo_ -> addItem("传感器校准模式", sensor_alignment_mode);
     mode_sel_combo_ -> addItem("飞行模式", flight_mode);
-    mode_sel_combo_ -> addItem("调参模式", tuning_mode);
+    mode_sel_combo_ -> addItem("姿态调参模式", tuning_mode);
+    mode_sel_combo_ -> addItem("位置调参模式", pos_tuning_mode);
     mode_sel_combo_ -> addItem("Vicon测试模式", vicon_test_mode);
     mode_sel_combo_ -> setCurrentIndex(default_mode);
 
@@ -561,7 +568,27 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     pid_id_layout_ -> addWidget(pid_id_pitch_);
     pid_id_layout_ -> addWidget(pid_id_roll_);
 
-    pid_tuning_layout_ -> addLayout(pid_id_layout_);
+    pos_pid_id_layout_ = new QHBoxLayout();
+    pos_pid_id_set_front_label_  = new QLabel("当前目标PID轴:");
+    pos_pid_id_layout_ -> addWidget(pos_pid_id_set_front_label_);
+    pid_id_x_ = new QPushButton("X");
+    pid_id_y_ = new QPushButton("Y");
+    pid_id_z_ = new QPushButton("Z");
+    pid_id_x_ -> setCheckable(true);
+    pid_id_y_ -> setCheckable(true);
+    pid_id_z_ -> setCheckable(true);
+    pos_pid_id_btn_group_ = new QButtonGroup();
+    pos_pid_id_btn_group_ -> addButton(pid_id_x_);
+    pos_pid_id_btn_group_ -> addButton(pid_id_y_);
+    pos_pid_id_btn_group_ -> addButton(pid_id_z_);
+    pos_pid_id_btn_group_ -> setId(pid_id_x_, 0);
+    pos_pid_id_btn_group_ -> setId(pid_id_y_, 1);
+    pos_pid_id_btn_group_ -> setId(pid_id_z_, 2);
+    pos_pid_id_layout_ -> addWidget(pid_id_x_);
+    pos_pid_id_layout_ -> addWidget(pid_id_y_);
+    pos_pid_id_layout_ -> addWidget(pid_id_z_);
+
+    // pid_tuning_layout_ -> addLayout(pid_id_layout_);
 
     //Vicon Test Layout
     vicon_test_layout_ = new QVBoxLayout();
@@ -625,6 +652,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #endif
     layout -> addWidget(flight_control_joysitck_);
     layout -> addLayout(pid_tuning_layout_);
+    layout -> addLayout(pid_id_layout_);
+    layout -> addLayout(pos_pid_id_layout_);
     layout -> addLayout(vicon_test_layout_);
     layout -> addLayout(sensor_calib_layout_);
     layout -> addStretch();
@@ -654,6 +683,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect( download_from_mav_,  SIGNAL( clicked() ), this, SLOT( downloadConfig() ));
     connect( mode_sel_combo_, SIGNAL(currentIndexChanged(int)), this, SLOT(setParamMode(int)));
     connect( pid_id_btn_group_, SIGNAL(buttonClicked(int)), this, SLOT(changeTuningAxis(int)));
+    connect( pos_pid_id_btn_group_, SIGNAL(buttonClicked(int)), this, SLOT(changeTuningAxis(int)));
     connect( throttle_debug_enable_, SIGNAL(clicked()), this, SLOT(enableThrottleDebug()));
 
     connect( vicon_topic_refresh_btn_,  SIGNAL( clicked() ), this, SLOT( refreshViconTopicList() ));
@@ -884,9 +914,9 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pid_int_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
             pid_int_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
             // uplimit
-            pid_int_uplimit_[2] = (int16_t)(msg -> data[20] << 8 | msg -> data[21]);
-            pid_int_uplimit_[1] = (int16_t)(msg -> data[22] << 8 | msg -> data[23]);
-            pid_int_uplimit_[0] = (int16_t)(msg -> data[24] << 8 | msg -> data[25]);
+            pid_int_uplimit_[2] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
+            pid_int_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
+            pid_int_uplimit_[0] = (uint16_t)(msg -> data[24] << 8 | msg -> data[25]);
             pid_int_lowlimit_[2] = - pid_int_uplimit_[2];
             pid_int_lowlimit_[1] = - pid_int_uplimit_[1];
             pid_int_lowlimit_[0] = - pid_int_uplimit_[0];
@@ -915,9 +945,9 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pid_ext_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
             pid_ext_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
 
-            pid_ext_uplimit_[2] = (int16_t)(msg -> data[20] << 8 | msg -> data[21]);
-            pid_ext_uplimit_[1] = (int16_t)(msg -> data[22] << 8 | msg -> data[23]);
-            pid_ext_uplimit_[0] = (int16_t)(msg -> data[24] << 8 | msg -> data[25]);
+            pid_ext_uplimit_[2] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
+            pid_ext_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
+            pid_ext_uplimit_[0] = (uint16_t)(msg -> data[24] << 8 | msg -> data[25]);
             pid_ext_lowlimit_[2] = - pid_ext_uplimit_[2];
             pid_ext_lowlimit_[1] = - pid_ext_uplimit_[1];
             pid_ext_lowlimit_[0] = - pid_ext_uplimit_[0];
@@ -936,15 +966,23 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
 
         case(mav_comm_driver::MFPUnified::UP_PID3):
             //0: x, 1: y, 2:z
-            pid_vel_set_[2][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
-            pid_vel_set_[2][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
-            pid_vel_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
-            pid_pos_set_[2][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
-            pid_pos_set_[2][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
-            pid_pos_set_[2][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
-            pid_vel_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
-            pid_vel_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
-            pid_vel_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+            pid_vel_set_[0][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
+            pid_vel_set_[0][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
+            pid_vel_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_vel_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
+            pid_vel_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
+            pid_vel_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_vel_set_[2][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
+            pid_vel_set_[2][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
+            pid_vel_set_[2][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+
+            pid_vel_uplimit_[0] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
+            pid_vel_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
+            pid_vel_uplimit_[2] = (uint16_t)(msg -> data[24] << 8 | msg -> data[25]);
+            pid_vel_lowlimit_[0] = - pid_vel_uplimit_[0];
+            pid_vel_lowlimit_[1] = - pid_vel_uplimit_[1];
+            pid_vel_lowlimit_[2] = - pid_vel_uplimit_[2];
+
             displayMessage(
                 message_t{
                     .text="收到PID(3)",
@@ -953,9 +991,8 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 },
                 false
             );
-            ROS_INFO_STREAM("VZ: P:" << pid_vel_set_[2][0] << "I:" << pid_vel_set_[2][1] << "D:" << pid_vel_set_[2][2]);
-            ROS_INFO_STREAM("VX: P:" << pid_vel_set_[0][0] << "I:" << pid_vel_set_[0][1] << "D:" << pid_vel_set_[0][2]);
-            ROS_INFO_STREAM("PZ: P:" << pid_pos_set_[2][0] << "I:" << pid_pos_set_[2][1] << "D:" << pid_pos_set_[2][2]);
+            // update display values
+            setPanelValues();
         break;
 
         case(mav_comm_driver::MFPUnified::UP_PID4):
@@ -963,6 +1000,20 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             pid_pos_set_[0][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
             pid_pos_set_[0][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
             pid_pos_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_pos_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
+            pid_pos_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
+            pid_pos_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_pos_set_[2][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
+            pid_pos_set_[2][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
+            pid_pos_set_[2][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+
+            pid_pos_uplimit_[0] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
+            pid_pos_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
+            pid_pos_uplimit_[2] = (uint16_t)(msg -> data[24] << 8 | msg -> data[25]);
+            pid_pos_lowlimit_[0] = - pid_pos_uplimit_[0];
+            pid_pos_lowlimit_[1] = - pid_pos_uplimit_[1];
+            pid_pos_lowlimit_[2] = - pid_pos_uplimit_[2];
+
             displayMessage(
                 message_t{
                     .text="收到PID(4)",
@@ -971,7 +1022,8 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 },
                 false
             );
-            ROS_INFO_STREAM("PX: P:" << pid_pos_set_[0][0] << "I:" << pid_pos_set_[0][1] << "D:" << pid_pos_set_[0][2]);
+            // update display values
+            setPanelValues();
         break;
 
         case(mav_comm_driver::MFPUnified::UP_PID5):
@@ -1064,6 +1116,26 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                     displayMessage(
                         message_t{
                             .text="外环PID写入成功",
+                            .color=Qt::blue,
+                            .time=200
+                        },
+                        false
+                    );
+                break;
+                case(mav_comm_driver::MFPUnified::DOWN_PID3):
+                    displayMessage(
+                        message_t{
+                            .text="速度PID写入成功",
+                            .color=Qt::blue,
+                            .time=200
+                        },
+                        false
+                    );
+                break;
+                case(mav_comm_driver::MFPUnified::DOWN_PID4):
+                    displayMessage(
+                        message_t{
+                            .text="位置PID写入成功",
                             .color=Qt::blue,
                             .time=200
                         },
@@ -1195,6 +1267,9 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
     Q_EMIT configChanged();
 
     mav_comm_driver::MFPUnified msg;
+    int16_t tmp_16;
+    uint16_t tmp_u16;
+
     switch (param_mode_)
     {
         case default_mode:
@@ -1246,9 +1321,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             mav_config_pub_.publish(msg);
         break;
 
-        case(tuning_mode):
-
-            int16_t tmp_16;
+        case tuning_mode:
 
             // int pid
             msg.msg_id = mav_comm_driver::MFPUnified::DOWN_PID1;
@@ -1285,12 +1358,16 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
 
-            msg.data.push_back(pid_int_uplimit_[2] >> 8);
-            msg.data.push_back(pid_int_uplimit_[2]);
-            msg.data.push_back(pid_int_uplimit_[1] >> 8);
-            msg.data.push_back(pid_int_uplimit_[1]);
-            msg.data.push_back(pid_int_uplimit_[0] >> 8);
-            msg.data.push_back(pid_int_uplimit_[0]);
+            
+            tmp_u16 = (uint16_t)(pid_int_uplimit_[2]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)(pid_int_uplimit_[1]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)(pid_int_uplimit_[0]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
 
             msg.header.stamp = ros::Time::now();
             mav_config_pub_.publish(msg);
@@ -1330,15 +1407,114 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
 
-            tmp_16 = (int16_t)(pid_ext_uplimit_[2]);
+            tmp_u16 = (uint16_t)(pid_ext_uplimit_[2]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)(pid_ext_uplimit_[1]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)(pid_ext_uplimit_[0]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+
+            msg.header.stamp = ros::Time::now();
+            mav_config_pub_.publish(msg);
+        break;
+
+        case pos_tuning_mode:
+
+            // vel pid
+            msg.msg_id = mav_comm_driver::MFPUnified::DOWN_PID3;
+            msg.length = 24;
+            msg.data.clear();
+            msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_PID3);
+            msg.data.push_back(24);
+
+            tmp_16 = (int16_t)(pid_vel_set_[0][0] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_ext_uplimit_[1]);
+            tmp_16 = (int16_t)(pid_vel_set_[0][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_ext_uplimit_[0]);
+            tmp_16 = (int16_t)(pid_vel_set_[0][2] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_vel_set_[1][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_vel_set_[1][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_vel_set_[1][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_vel_set_[2][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_vel_set_[2][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_vel_set_[2][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+
+            tmp_u16 = (uint16_t)pid_vel_uplimit_[0];
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)pid_vel_uplimit_[1];
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)pid_vel_uplimit_[2];
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+
+            msg.header.stamp = ros::Time::now();
+            mav_config_pub_.publish(msg);
+
+            // pos pid
+            msg.msg_id = mav_comm_driver::MFPUnified::DOWN_PID4;
+            msg.length = 24;
+            msg.data.clear();
+            msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_PID4);
+            msg.data.push_back(24);
+
+            tmp_16 = (int16_t)(pid_pos_set_[0][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[0][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[0][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[1][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[1][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[1][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[2][0] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[2][1] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+            tmp_16 = (int16_t)(pid_pos_set_[2][2] * 10);
+            msg.data.push_back(tmp_16 >> 8);
+            msg.data.push_back(tmp_16);
+
+            tmp_u16 = (uint16_t)(pid_pos_uplimit_[0]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)(pid_pos_uplimit_[1]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
+            tmp_u16 = (uint16_t)(pid_pos_uplimit_[2]);
+            msg.data.push_back(tmp_u16 >> 8);
+            msg.data.push_back(tmp_u16);
 
             msg.header.stamp = ros::Time::now();
             mav_config_pub_.publish(msg);
@@ -1559,6 +1735,14 @@ void FMAVStatusPanel::downloadConfig(){ //button slot: download config from fmav
             msg.data.push_back(1);
             msg.data.push_back(0x01);   // CMD 0x01 读取PID请求
         break;
+        
+        case pos_tuning_mode:
+            msg.msg_id = mav_comm_driver::MFPUnified::DOWN_ACK;
+            msg.length = 1;
+            msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_ACK);
+            msg.data.push_back(1);
+            msg.data.push_back(0x01);   // CMD 0x01 读取PID请求
+        break;
     }
 
     msg.header.stamp = ros::Time::now();
@@ -1595,6 +1779,7 @@ void FMAVStatusPanel::checkConnection(){
 
 void FMAVStatusPanel::setParamMode(int index){
 
+    getParamValues();
     boxLayoutVisible(right_servo_set_layout_, false);
     boxLayoutVisible(left_servo_set_layout_, false);
     boxLayoutVisible(throttle_layout_, false);
@@ -1603,6 +1788,8 @@ void FMAVStatusPanel::setParamMode(int index){
     boxLayoutVisible(climb_set_layout_, false);
 #endif
     boxLayoutVisible(pid_tuning_layout_, false);
+    boxLayoutVisible(pid_id_layout_, false);
+    boxLayoutVisible(pos_pid_id_layout_, false);
     boxLayoutVisible(vicon_test_layout_, false);
     boxLayoutVisible(sensor_calib_layout_, false);
     // if(param_mode_ == vicon_test_mode)
@@ -1677,12 +1864,21 @@ void FMAVStatusPanel::setParamMode(int index){
 
         case(tuning_mode):    //TUNING MODE
             param_mode_ = tuning_mode;
-            boxLayoutVisible(throttle_set_layout_, true);
+            // boxLayoutVisible(throttle_set_layout_, true);
             boxLayoutVisible(pid_tuning_layout_, true);
+            boxLayoutVisible(pid_id_layout_, true);
+            setPanelValues();
 #ifdef FOUR_WING
             throttle_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
             throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX - 100);
 #endif
+            break;
+
+        case(pos_tuning_mode):
+            param_mode_ = pos_tuning_mode;
+            boxLayoutVisible(pid_tuning_layout_, true);
+            boxLayoutVisible(pos_pid_id_layout_, true);
+            setPanelValues();
             break;
         
         case(vicon_test_mode):    //VICON TEST MODE
@@ -1708,20 +1904,37 @@ void FMAVStatusPanel::getParamValues(){
 
     // pid_id_set_ = pid_id_btn_group_ -> checkedId();  // in order to keep value before changing axis
 
-    pid_ext_set_[pid_id_set_][0] = pid_ext_p_edit_ -> text().toFloat();
-    pid_ext_set_[pid_id_set_][1] = pid_ext_i_edit_ -> text().toFloat();
-    pid_ext_set_[pid_id_set_][2] = pid_ext_d_edit_ -> text().toFloat();
+    if(param_mode_ == tuning_mode){
+        pid_ext_set_[pid_id_set_][0] = pid_ext_p_edit_ -> text().toFloat();
+        pid_ext_set_[pid_id_set_][1] = pid_ext_i_edit_ -> text().toFloat();
+        pid_ext_set_[pid_id_set_][2] = pid_ext_d_edit_ -> text().toFloat();
 
-    pid_int_set_[pid_id_set_][0] = pid_int_p_edit_ -> text().toFloat();
-    pid_int_set_[pid_id_set_][1] = pid_int_i_edit_ -> text().toFloat();
-    pid_int_set_[pid_id_set_][2] = pid_int_d_edit_ -> text().toFloat();
+        pid_int_set_[pid_id_set_][0] = pid_int_p_edit_ -> text().toFloat();
+        pid_int_set_[pid_id_set_][1] = pid_int_i_edit_ -> text().toFloat();
+        pid_int_set_[pid_id_set_][2] = pid_int_d_edit_ -> text().toFloat();
 
-    pid_ext_lowlimit_[pid_id_set_] = pid_ext_lowlimit_edit_ -> text().toFloat();
-    pid_ext_uplimit_[pid_id_set_] = pid_ext_uplimit_edit_ -> text().toFloat();
-    pid_int_lowlimit_[pid_id_set_] = pid_int_lowlimit_edit_ -> text().toUInt();
-    pid_int_uplimit_[pid_id_set_] = pid_int_uplimit_edit_ -> text().toUInt();
-    pid_setvalue_[pid_id_set_] = pid_setvalue_edit_ -> text().toFloat();
-    pid_freq_ = pid_freq_edit_ -> text().toUInt();
+        pid_ext_lowlimit_[pid_id_set_] = pid_ext_lowlimit_edit_ -> text().toFloat();
+        pid_ext_uplimit_[pid_id_set_] = pid_ext_uplimit_edit_ -> text().toFloat();
+        pid_int_lowlimit_[pid_id_set_] = pid_int_lowlimit_edit_ -> text().toFloat();
+        pid_int_uplimit_[pid_id_set_] = pid_int_uplimit_edit_ -> text().toFloat();
+        pid_setvalue_[pid_id_set_] = pid_setvalue_edit_ -> text().toFloat();
+        pid_freq_ = pid_freq_edit_ -> text().toUInt();
+    }
+    else if(param_mode_ == pos_tuning_mode){
+        pid_pos_set_[pos_pid_id_set_][0] = pid_ext_p_edit_ -> text().toFloat();
+        pid_pos_set_[pos_pid_id_set_][1] = pid_ext_i_edit_ -> text().toFloat();
+        pid_pos_set_[pos_pid_id_set_][2] = pid_ext_d_edit_ -> text().toFloat();
+
+        pid_vel_set_[pos_pid_id_set_][0] = pid_int_p_edit_ -> text().toFloat();
+        pid_vel_set_[pos_pid_id_set_][1] = pid_int_i_edit_ -> text().toFloat();
+        pid_vel_set_[pos_pid_id_set_][2] = pid_int_d_edit_ -> text().toFloat();
+
+        pid_pos_lowlimit_[pos_pid_id_set_] = pid_ext_lowlimit_edit_ -> text().toFloat();
+        pid_pos_uplimit_[pos_pid_id_set_] = pid_ext_uplimit_edit_ -> text().toFloat();
+        pid_vel_lowlimit_[pos_pid_id_set_] = pid_int_lowlimit_edit_ -> text().toFloat();
+        pid_vel_uplimit_[pos_pid_id_set_] = pid_int_uplimit_edit_ -> text().toFloat();
+    }
+
 
     mag_offset_set_[0] = mag_offset_x_edit_ -> text().toDouble();
     mag_offset_set_[1] = mag_offset_y_edit_ -> text().toDouble();
@@ -1745,41 +1958,83 @@ void FMAVStatusPanel::setPanelValues(){
     throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
 #endif
 
-    switch(pid_id_set_){
-        case(0):
-            pid_id_yaw_ -> setChecked(true);
-            pid_ext_front_label_ -> setText("外环PID参数 - Yaw");
-            pid_int_front_label_ -> setText("内环PID参数 - Yaw");
-            pid_setvalue_front_label_ -> setText("设定角度目标值 - Yaw");
-        break;
-        case(1):
-            pid_id_pitch_ -> setChecked(true);
-            pid_ext_front_label_ -> setText("外环PID参数 - Pitch");
-            pid_int_front_label_ -> setText("内环PID参数 - Pitch");
-            pid_setvalue_front_label_ -> setText("设定角度目标值 - Pitch");
-        break;
-        case(2):
-            pid_id_roll_ -> setChecked(true);
-            pid_ext_front_label_ -> setText("外环PID参数 - Roll");
-            pid_int_front_label_ -> setText("内环PID参数 - Roll");
-            pid_setvalue_front_label_ -> setText("设定角度目标值 - Roll");
-        break;
+    if(param_mode_ == tuning_mode){
+
+        switch(pid_id_set_){
+            case(0):
+                pid_id_yaw_ -> setChecked(true);
+                pid_ext_front_label_ -> setText("外环PID参数 - Yaw");
+                pid_int_front_label_ -> setText("内环PID参数 - Yaw");
+                pid_setvalue_front_label_ -> setText("设定角度目标值 - Yaw");
+            break;
+            case(1):
+                pid_id_pitch_ -> setChecked(true);
+                pid_ext_front_label_ -> setText("外环PID参数 - Pitch");
+                pid_int_front_label_ -> setText("内环PID参数 - Pitch");
+                pid_setvalue_front_label_ -> setText("设定角度目标值 - Pitch");
+            break;
+            case(2):
+                pid_id_roll_ -> setChecked(true);
+                pid_ext_front_label_ -> setText("外环PID参数 - Roll");
+                pid_int_front_label_ -> setText("内环PID参数 - Roll");
+                pid_setvalue_front_label_ -> setText("设定角度目标值 - Roll");
+            break;
+        }
+        
+        pid_ext_p_edit_ -> setText(QString::number(pid_ext_set_[pid_id_set_][0]));
+        pid_ext_i_edit_ -> setText(QString::number(pid_ext_set_[pid_id_set_][1]));
+        pid_ext_d_edit_ -> setText(QString::number(pid_ext_set_[pid_id_set_][2]));
+
+        pid_int_p_edit_ -> setText(QString::number(pid_int_set_[pid_id_set_][0]));
+        pid_int_i_edit_ -> setText(QString::number(pid_int_set_[pid_id_set_][1]));
+        pid_int_d_edit_ -> setText(QString::number(pid_int_set_[pid_id_set_][2]));
+
+        pid_ext_lowlimit_edit_ -> setText(QString::number(pid_ext_lowlimit_[pid_id_set_]));
+        pid_ext_uplimit_edit_ -> setText(QString::number(pid_ext_uplimit_[pid_id_set_]));
+        pid_int_lowlimit_edit_ -> setText(QString::number(pid_int_lowlimit_[pid_id_set_]));
+        pid_int_uplimit_edit_ -> setText(QString::number(pid_int_uplimit_[pid_id_set_]));
+        pid_setvalue_edit_ -> setText(QString::number(pid_setvalue_[pid_id_set_]));
+        pid_freq_edit_ -> setText(QString::number(pid_freq_));
+
     }
-    
-    pid_ext_p_edit_ -> setText(QString::number(pid_ext_set_[pid_id_set_][0]));
-    pid_ext_i_edit_ -> setText(QString::number(pid_ext_set_[pid_id_set_][1]));
-    pid_ext_d_edit_ -> setText(QString::number(pid_ext_set_[pid_id_set_][2]));
+    else if(param_mode_ == pos_tuning_mode){
 
-    pid_int_p_edit_ -> setText(QString::number(pid_int_set_[pid_id_set_][0]));
-    pid_int_i_edit_ -> setText(QString::number(pid_int_set_[pid_id_set_][1]));
-    pid_int_d_edit_ -> setText(QString::number(pid_int_set_[pid_id_set_][2]));
+        switch(pos_pid_id_set_){
+            case(0):
+                pid_id_x_ -> setChecked(true);
+                pid_ext_front_label_ -> setText("位置PID参数 - X");
+                pid_int_front_label_ -> setText("速度PID参数 - X");
+                pid_setvalue_front_label_ -> setText("设定位置目标值 - X");
+            break;
+            case(1):
+                pid_id_y_ -> setChecked(true);
+                pid_ext_front_label_ -> setText("位置PID参数 - Y");
+                pid_int_front_label_ -> setText("速度PID参数 - Y");
+                pid_setvalue_front_label_ -> setText("设定位置目标值 - Y");
+            break;
+            case(2):
+                pid_id_z_ -> setChecked(true);
+                pid_ext_front_label_ -> setText("位置PID参数 - Z");
+                pid_int_front_label_ -> setText("速度PID参数 - Z");
+                pid_setvalue_front_label_ -> setText("设定位置目标值 - Z");
+            break;
+        }
+        
+        pid_ext_p_edit_ -> setText(QString::number(pid_pos_set_[pos_pid_id_set_][0]));
+        pid_ext_i_edit_ -> setText(QString::number(pid_pos_set_[pos_pid_id_set_][1]));
+        pid_ext_d_edit_ -> setText(QString::number(pid_pos_set_[pos_pid_id_set_][2]));
 
-    pid_ext_lowlimit_edit_ -> setText(QString::number(pid_ext_lowlimit_[pid_id_set_]));
-    pid_ext_uplimit_edit_ -> setText(QString::number(pid_ext_uplimit_[pid_id_set_]));
-    pid_int_lowlimit_edit_ -> setText(QString::number(pid_int_lowlimit_[pid_id_set_]));
-    pid_int_uplimit_edit_ -> setText(QString::number(pid_int_uplimit_[pid_id_set_]));
-    pid_setvalue_edit_ -> setText(QString::number(pid_setvalue_[pid_id_set_]));
-    pid_freq_edit_ -> setText(QString::number(pid_freq_));
+        pid_int_p_edit_ -> setText(QString::number(pid_vel_set_[pos_pid_id_set_][0]));
+        pid_int_i_edit_ -> setText(QString::number(pid_vel_set_[pos_pid_id_set_][1]));
+        pid_int_d_edit_ -> setText(QString::number(pid_vel_set_[pos_pid_id_set_][2]));
+
+        pid_ext_lowlimit_edit_ -> setText(QString::number(pid_pos_lowlimit_[pos_pid_id_set_]));
+        pid_ext_uplimit_edit_ -> setText(QString::number(pid_pos_uplimit_[pos_pid_id_set_]));
+        pid_int_lowlimit_edit_ -> setText(QString::number(pid_vel_lowlimit_[pos_pid_id_set_]));
+        pid_int_uplimit_edit_ -> setText(QString::number(pid_vel_uplimit_[pos_pid_id_set_]));
+
+    }
+
 
     mag_offset_x_edit_ -> setText(QString::number(mag_offset_set_[0]));
     mag_offset_y_edit_ -> setText(QString::number(mag_offset_set_[1]));
@@ -1793,7 +2048,10 @@ void FMAVStatusPanel::setPanelValues(){
 void FMAVStatusPanel::changeTuningAxis(int btn_id){
 
     getParamValues();
-    pid_id_set_ = btn_id;
+    if(param_mode_ == tuning_mode)
+        pid_id_set_ = btn_id;
+    else if(param_mode_ == pos_tuning_mode)
+        pos_pid_id_set_ = btn_id;
     setPanelValues();
 }
 
@@ -2195,6 +2453,39 @@ void FMAVStatusPanel::save( rviz::Config config ) const
     config.mapSetValue("PIDIntLowlimitPitch", pid_int_lowlimit_[1]);
     config.mapSetValue("PIDIntLowlimitRoll", pid_int_lowlimit_[2]);
 
+    config.mapSetValue("PIDPosZSet0", pid_pos_set_[2][0]);
+    config.mapSetValue("PIDPosZSet1", pid_pos_set_[2][1]);
+    config.mapSetValue("PIDPosZSet2", pid_pos_set_[2][2]);
+    config.mapSetValue("PIDPosYSet0", pid_pos_set_[1][0]);
+    config.mapSetValue("PIDPosYSet1", pid_pos_set_[1][1]);
+    config.mapSetValue("PIDPosYSet2", pid_pos_set_[1][2]);
+    config.mapSetValue("PIDPosXSet0", pid_pos_set_[0][0]);
+    config.mapSetValue("PIDPosXSet1", pid_pos_set_[0][1]);
+    config.mapSetValue("PIDPosXSet2", pid_pos_set_[0][2]);
+    config.mapSetValue("PIDVelZSet0", pid_vel_set_[2][0]);
+    config.mapSetValue("PIDVelZSet1", pid_vel_set_[2][1]);
+    config.mapSetValue("PIDVelZSet2", pid_vel_set_[2][2]);
+    config.mapSetValue("PIDVelYSet0", pid_vel_set_[1][0]);
+    config.mapSetValue("PIDVelYSet1", pid_vel_set_[1][1]);
+    config.mapSetValue("PIDVelYSet2", pid_vel_set_[1][2]);
+    config.mapSetValue("PIDVelXSet0", pid_vel_set_[0][0]);
+    config.mapSetValue("PIDVelXSet1", pid_vel_set_[0][1]);
+    config.mapSetValue("PIDVelXSet2", pid_vel_set_[0][2]);
+    config.mapSetValue("PositionPIDID", pos_pid_id_set_);
+
+    config.mapSetValue("PIDPosUplimitX", pid_pos_uplimit_[0]);
+    config.mapSetValue("PIDPosUplimitY", pid_pos_uplimit_[1]);
+    config.mapSetValue("PIDPosUplimitZ", pid_pos_uplimit_[2]);
+    config.mapSetValue("PIDPosLowlimitX", pid_pos_lowlimit_[0]);
+    config.mapSetValue("PIDPosLowlimitY", pid_pos_lowlimit_[1]);
+    config.mapSetValue("PIDPosLowlimitZ", pid_pos_lowlimit_[2]);
+    config.mapSetValue("PIDVelUplimitX", pid_vel_uplimit_[0]);
+    config.mapSetValue("PIDVelUplimitY", pid_vel_uplimit_[1]);
+    config.mapSetValue("PIDVelUplimitZ", pid_vel_uplimit_[2]);
+    config.mapSetValue("PIDVelLowlimitX", pid_vel_lowlimit_[0]);
+    config.mapSetValue("PIDVelLowlimitY", pid_vel_lowlimit_[1]);
+    config.mapSetValue("PIDVelLowlimitZ", pid_vel_lowlimit_[2]);
+
     config.mapSetValue("SensorMagOffsetX", mag_offset_set_[0]);
     config.mapSetValue("SensorMagOffsetY", mag_offset_set_[1]);
     config.mapSetValue("SensorMagOffsetZ", mag_offset_set_[2]);
@@ -2218,6 +2509,7 @@ void FMAVStatusPanel::load( const rviz::Config& config )
 #endif
     config.mapGetValue("ClimbServoPWMSet", &v_tmp); climb_pwm_set_ = v_tmp.toUInt();
 
+    // 姿态环PID参数
     config.mapGetValue("PIDExtRollSet0", &v_tmp); pid_ext_set_[2][0] = v_tmp.toFloat();
     config.mapGetValue("PIDExtRollSet1", &v_tmp); pid_ext_set_[2][1] = v_tmp.toFloat();
     config.mapGetValue("PIDExtRollSet2", &v_tmp); pid_ext_set_[2][2] = v_tmp.toFloat();
@@ -2242,18 +2534,52 @@ void FMAVStatusPanel::load( const rviz::Config& config )
     config.mapGetValue("PIDSetValueYaw", &v_tmp); pid_setvalue_[0] = v_tmp.toFloat();
     config.mapGetValue("PIDSetValuePitch", &v_tmp); pid_setvalue_[1] = v_tmp.toFloat();
     config.mapGetValue("PIDSetValueRoll", &v_tmp); pid_setvalue_[2] = v_tmp.toFloat();
-    config.mapGetValue("PIDExtUplimitYaw", &v_tmp); pid_ext_uplimit_[0] = v_tmp.toInt();
-    config.mapGetValue("PIDExtUplimitPitch", &v_tmp); pid_ext_uplimit_[1] = v_tmp.toInt();
-    config.mapGetValue("PIDExtUplimitRoll", &v_tmp); pid_ext_uplimit_[2] = v_tmp.toInt();
-    config.mapGetValue("PIDExtLowlimitYaw", &v_tmp); pid_ext_lowlimit_[0] = v_tmp.toInt();
-    config.mapGetValue("PIDExtLowlimitPitch", &v_tmp); pid_ext_lowlimit_[1] = v_tmp.toInt();
-    config.mapGetValue("PIDExtLowlimitRoll", &v_tmp); pid_ext_lowlimit_[2] = v_tmp.toInt();
-    config.mapGetValue("PIDIntUplimitYaw", &v_tmp); pid_int_uplimit_[0] = v_tmp.toInt();
-    config.mapGetValue("PIDIntUplimitPitch", &v_tmp); pid_int_uplimit_[1] = v_tmp.toInt();
-    config.mapGetValue("PIDIntUplimitRoll", &v_tmp); pid_int_uplimit_[2] = v_tmp.toInt();
-    config.mapGetValue("PIDIntLowlimitYaw", &v_tmp); pid_int_lowlimit_[0] = v_tmp.toInt();
-    config.mapGetValue("PIDIntLowlimitPitch", &v_tmp); pid_int_lowlimit_[1] = v_tmp.toInt();
-    config.mapGetValue("PIDIntLowlimitRoll", &v_tmp); pid_int_lowlimit_[2] = v_tmp.toInt();
+    config.mapGetValue("PIDExtUplimitYaw", &v_tmp); pid_ext_uplimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDExtUplimitPitch", &v_tmp); pid_ext_uplimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDExtUplimitRoll", &v_tmp); pid_ext_uplimit_[2] = v_tmp.toFloat();
+    config.mapGetValue("PIDExtLowlimitYaw", &v_tmp); pid_ext_lowlimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDExtLowlimitPitch", &v_tmp); pid_ext_lowlimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDExtLowlimitRoll", &v_tmp); pid_ext_lowlimit_[2] = v_tmp.toFloat();
+    config.mapGetValue("PIDIntUplimitYaw", &v_tmp); pid_int_uplimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDIntUplimitPitch", &v_tmp); pid_int_uplimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDIntUplimitRoll", &v_tmp); pid_int_uplimit_[2] = v_tmp.toFloat();
+    config.mapGetValue("PIDIntLowlimitYaw", &v_tmp); pid_int_lowlimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDIntLowlimitPitch", &v_tmp); pid_int_lowlimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDIntLowlimitRoll", &v_tmp); pid_int_lowlimit_[2] = v_tmp.toFloat();
+
+    // 位置环PID参数
+    config.mapGetValue("PIDPosZSet0", &v_tmp); pid_pos_set_[2][0] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosZSet1", &v_tmp); pid_pos_set_[2][1] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosZSet2", &v_tmp); pid_pos_set_[2][2] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosYSet0", &v_tmp); pid_pos_set_[1][0] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosYSet1", &v_tmp); pid_pos_set_[1][1] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosYSet2", &v_tmp); pid_pos_set_[1][2] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosXSet0", &v_tmp); pid_pos_set_[0][0] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosXSet1", &v_tmp); pid_pos_set_[0][1] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosXSet2", &v_tmp); pid_pos_set_[0][2] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelZSet0", &v_tmp); pid_vel_set_[2][0] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelZSet1", &v_tmp); pid_vel_set_[2][1] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelZSet2", &v_tmp); pid_vel_set_[2][2] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelYSet0", &v_tmp); pid_vel_set_[1][0] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelYSet1", &v_tmp); pid_vel_set_[1][1] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelYSet2", &v_tmp); pid_vel_set_[1][2] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelXSet0", &v_tmp); pid_vel_set_[0][0] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelXSet1", &v_tmp); pid_vel_set_[0][1] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelXSet2", &v_tmp); pid_vel_set_[0][2] = v_tmp.toFloat();
+    config.mapGetValue("PositionPIDID", &v_tmp); pos_pid_id_set_ = v_tmp.toUInt();
+
+    config.mapGetValue("PIDPosUplimitX", &v_tmp); pid_pos_uplimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosUplimitY", &v_tmp); pid_pos_uplimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosUplimitZ", &v_tmp); pid_pos_uplimit_[2] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosLowlimitX", &v_tmp); pid_pos_lowlimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosLowlimitY", &v_tmp); pid_pos_lowlimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDPosLowlimitZ", &v_tmp); pid_pos_lowlimit_[2] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelUplimitX", &v_tmp); pid_vel_uplimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelUplimitY", &v_tmp); pid_vel_uplimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelUplimitZ", &v_tmp); pid_vel_uplimit_[2] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelLowlimitX", &v_tmp); pid_vel_lowlimit_[0] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelLowlimitY", &v_tmp); pid_vel_lowlimit_[1] = v_tmp.toFloat();
+    config.mapGetValue("PIDVelLowlimitZ", &v_tmp); pid_vel_lowlimit_[2] = v_tmp.toFloat();
 
     config.mapGetValue("SensorMagOffsetX", &v_tmp); mag_offset_set_[0] = v_tmp.toDouble();
     config.mapGetValue("SensorMagOffsetY", &v_tmp); mag_offset_set_[1] = v_tmp.toDouble();
