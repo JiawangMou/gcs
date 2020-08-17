@@ -170,7 +170,8 @@ protected:
     QLabel* pid_id_label_;
 
     //回传数据变量
-    uint8_t mode_id_;
+    uint8_t mode_id_;   // 0x00:manual, 0x01:altitude, 0x02:position, 0xff:not determined
+    uint8_t sub_mode_id_;   // 0x00:none, 0x01:takeoff, 0x02:landing, 0x03:emergency
     float cur_roll_;
     float cur_pitch_;
     float cur_yaw_;
@@ -212,6 +213,7 @@ protected:
     static const uint8_t tuning_mode = 4;
     static const uint8_t pos_tuning_mode = 5;
     static const uint8_t vicon_test_mode = 6;
+    static const uint8_t debug_mode = 7;
 
 
     //舵机/电机调试模式控件
@@ -348,6 +350,10 @@ protected:
     QPushButton* vicon_topic_refresh_btn_;
     QComboBox* vicon_topic_combo_;
     QPushButton* vicon_start_btn_;
+
+    //Debug模式控件
+    QVBoxLayout* debug_layout_;
+    QLabel* z_mode_label_;
     
     //飞行模式摇杆
     JoystickWidget* flight_control_joysitck_;

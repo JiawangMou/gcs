@@ -38,6 +38,9 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     throttle_joystick_ = 0;
     pitch_joystick_ = roll_joystick_ = yaw_joystick_ = 0;
 
+    mode_id_ = 0xff;
+    sub_mode_id_ = 0x00;
+
     uint i, j;
     for(i = 0; i < 3; i ++){
         for(j = 0; j < 3; j ++){
@@ -301,6 +304,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mode_sel_combo_ -> addItem("姿态调参模式", tuning_mode);
     mode_sel_combo_ -> addItem("位置调参模式", pos_tuning_mode);
     mode_sel_combo_ -> addItem("Vicon测试模式", vicon_test_mode);
+    mode_sel_combo_ -> addItem("Debug模式", debug_mode);
     mode_sel_combo_ -> setCurrentIndex(default_mode);
 
     //PWM调节栏(开始模式，手动模式)
@@ -598,6 +602,11 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     vicon_test_layout_ -> addWidget(vicon_topic_combo_);
     vicon_start_btn_ = new QPushButton("开始Vicon转发");
     vicon_test_layout_ -> addWidget(vicon_start_btn_);
+
+    //Debug Layout
+    debug_layout_ = new QVBoxLayout();
+    z_mode_label_ = new QLabel("Z Mode : - ");
+    debug_layout_ -> addWidget(z_mode_label_);
     
     //飞行模式摇杆
     flight_control_joysitck_ = new JoystickWidget();
@@ -654,6 +663,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     layout -> addLayout(pid_tuning_layout_);
     layout -> addLayout(pid_id_layout_);
     layout -> addLayout(pos_pid_id_layout_);
+    layout -> addLayout(debug_layout_);
     layout -> addLayout(vicon_test_layout_);
     layout -> addLayout(sensor_calib_layout_);
     layout -> addStretch();
@@ -737,9 +747,8 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
     geometry_msgs::Point pt_tmp;
     char numstr[30];
     static uint acc_count = 0, acc_healthy_count = 0;
+    uint16_t tmp_16;
 
-
-    mode_id_ = msg -> msg_id;
     switch(msg -> msg_id){
         case(mav_comm_driver::MFPUnified::UP_STATUS):
 
@@ -1144,97 +1153,40 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 break;
             }
         break;
+
+        case(mav_comm_driver::MFPUnified::UP_PID_DEBUG):
+
+            if(msg -> data[2] == 0x03){
+                tmp_16 = *((uint32_t*)&(msg -> data[19]));
+                mode_id_ = tmp_16 & 0x03;
+                if(tmp_16 >> 2 & 0x01){
+                    sub_mode_id_ = 0x01;
+                }
+                else if(tmp_16 >> 3 & 0x01){
+                    sub_mode_id_ = 0x02;
+                }
+                else if(tmp_16 >> 4 & 0x01){
+                    sub_mode_id_ = 0x03;
+                }
+                else{
+                    sub_mode_id_ = 0x00;
+                }
+
+                switch(tmp_16 >> 8){
+                    case(0x00):
+                        z_mode_label_ -> setText("Z Mode : 关闭模式");
+                    break;
+                    case(0x01):
+                        z_mode_label_ -> setText("Z Mode : 绝对值模式");
+                    break;
+                    case(0x02):
+                        z_mode_label_ -> setText("Z Mode : 速率模式");
+                    break;
+                }
+                displayStatus();
+            }
+        break;
     }
-
-//     cur_mid_servo_pwm_ = msg -> mid_servo_pwm;
-//     cur_climb_pwm_ = msg -> climb_pwm;
-//     cur_time_ms_ = msg -> board_time;
-//     cur_pid_id_ = msg -> pid_id;
-
-// #ifdef TWO_WING
-//     sprintf(numstr, "%u", cur_mid_servo_pwm_);
-//     mid_servo_label_ -> setText(numstr);
-// #endif
-//     sprintf(numstr, "%u", cur_left_servo_pwm_);
-//     left_servo_label_ -> setText(numstr);
-//     sprintf(numstr, "%u", cur_right_servo_pwm_);
-//     right_servo_label_ -> setText(numstr);
-//     sprintf(numstr, "%u", cur_throttle_pwm_);
-//     throttle_label_ -> setText(numstr);
-// #ifdef FOUR_WING
-//     sprintf(numstr, "%u", cur_throttle_2_pwm_);
-//     throttle_2_label_ -> setText(numstr);
-// #endif
-// #ifdef TWO_WING
-//     sprintf(numstr, "%u", cur_climb_pwm_);
-//     climb_label_ -> setText(numstr);
-// #endif
-
-//     if(mode_id_ == tuning_mode){
-
-//         if(!pid_id_label_ -> isVisible()){
-//             pid_id_label_ -> setVisible(true);
-//             pid_id_front_label_ -> setVisible(true);
-//         }
-//         switch(cur_pid_id_){
-//             case(0):    //yaw
-//                 pid_id_label_ -> setText("Yaw");
-//             break;
-//             case(1):    //pitch
-//                 pid_id_label_ -> setText("Pitch");
-//             break;
-//             case(2):    //roll
-//                 pid_id_label_ -> setText("Roll");
-//             break;
-//         }
-//     }
-//     else{
-//         if(pid_id_label_ -> isVisible()){
-//             pid_id_label_ -> setVisible(false);
-//             pid_id_front_label_ -> setVisible(false);
-//         }
-//     }
-
-//     if(!time_s_label_ -> isVisible())
-//         boxLayoutVisible(time_layout_, true);
-//     sprintf(numstr, "%u s", cur_time_ms_ / 1000000);
-//     time_s_label_ -> setText(numstr);
-//     sprintf(numstr, "%03u ms %03u us [开机时间]", (cur_time_ms_/1000) % 1000, cur_time_ms_ % 1000);
-//     time_ms_label_ -> setText(numstr);
-
-//     //temp marker for the 3d model vislization
-//     // visualization_msgs::Marker marker;
-//     // marker.pose.orientation.x = msg -> odom.pose.pose.orientation.x;
-//     // marker.pose.orientation.y = msg -> odom.pose.pose.orientation.y;
-//     // marker.pose.orientation.z = msg -> odom.pose.pose.orientation.z;
-//     // marker.pose.orientation.w = msg -> odom.pose.pose.orientation.w;
-
-//     // marker.header.frame_id = "map";
-//     // marker.id = 1;
-//     // marker.lifetime = ros::Duration(0.5);
-//     // marker.color.a = 0.8;
-//     // marker.color.r = 1; marker.color.g = 0; marker.color.b = 0;
-//     // marker.scale.x = 0.5; marker.scale.y = 0.5; marker.scale.z = 2;
-//     // marker.type = visualization_msgs::Marker::CUBE;
-//     // marker.action = visualization_msgs::Marker::MODIFY;
-//     // marker.frame_locked = false;
-//     // marker.pose.position.x = 0;
-//     // marker.pose.position.y = 0;
-
-//     // vis_pub_.publish(marker);
-
-//     //send tf transform
-//     tf::Transform transform;
-//     tf::Quaternion q;
-//     q.setX(msg -> odom.pose.pose.orientation.x);
-//     q.setY(msg -> odom.pose.pose.orientation.y);
-//     q.setZ(msg -> odom.pose.pose.orientation.z);
-//     q.setW(msg -> odom.pose.pose.orientation.w);
-//     transform.setRotation(q);
-//     transform.setOrigin(tf::Vector3(msg -> odom.pose.pose.position.x,
-//                                     msg -> odom.pose.pose.position.y,
-//                                     msg -> odom.pose.pose.position.z));
-//     tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
 
 }
 
@@ -1791,6 +1743,7 @@ void FMAVStatusPanel::setParamMode(int index){
     boxLayoutVisible(pid_id_layout_, false);
     boxLayoutVisible(pos_pid_id_layout_, false);
     boxLayoutVisible(vicon_test_layout_, false);
+    boxLayoutVisible(debug_layout_, false);
     boxLayoutVisible(sensor_calib_layout_, false);
     // if(param_mode_ == vicon_test_mode)
         // system("rosnode kill /vicon_bridge");
@@ -1884,6 +1837,11 @@ void FMAVStatusPanel::setParamMode(int index){
         case(vicon_test_mode):    //VICON TEST MODE
             param_mode_ = vicon_test_mode;
             boxLayoutVisible(vicon_test_layout_, true);
+            break;
+        
+        case(debug_mode):
+            param_mode_ = debug_mode;
+            boxLayoutVisible(debug_layout_, true);
             break;
     }
 }
@@ -2319,11 +2277,64 @@ void FMAVStatusPanel::displayStatus(){
     QPalette palette;
     if(is_connected){
         if(!is_vicon_started){
-            mode_label_ -> setText("连接正常");
-            palette.setColor(QPalette::Background, QColor(0, 255, 0));
-            mode_label_ -> setPalette(palette);
-            palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
-            mode_label_ -> setPalette(palette);
+
+            switch(mode_id_){
+                case(0xff):
+                    mode_label_ -> setText("连接正常");
+                    palette.setColor(QPalette::Background, QColor(0, 255, 0));
+                    mode_label_ -> setPalette(palette);
+                    palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
+                    mode_label_ -> setPalette(palette);
+                break;
+                case(0x00):
+                    mode_label_ -> setText("手动模式");
+                    palette.setColor(QPalette::Background, QColor(0, 255, 0));
+                    mode_label_ -> setPalette(palette);
+                    palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
+                    mode_label_ -> setPalette(palette);
+                break;
+                case(0x01):
+                    switch(sub_mode_id_){
+                        case(0x00):
+                            mode_label_ -> setText("定高模式");
+                            palette.setColor(QPalette::Background, QColor(0, 255, 0));
+                            mode_label_ -> setPalette(palette);
+                            palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
+                            mode_label_ -> setPalette(palette);
+                        break;
+                        case(0x01):
+                            mode_label_ -> setText("定高模式 - 飞行中");
+                            palette.setColor(QPalette::Background, QColor(0, 255, 255));
+                            mode_label_ -> setPalette(palette);
+                            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+                            mode_label_ -> setPalette(palette);
+                        break;
+                        case(0x02):
+                            mode_label_ -> setText("定高模式 - 降落中");
+                            palette.setColor(QPalette::Background, QColor(0, 255, 255));
+                            mode_label_ -> setPalette(palette);
+                            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+                            mode_label_ -> setPalette(palette);
+                        break;
+                        case(0x03):
+                            mode_label_ -> setText("定高模式 - 紧急停机");
+                            palette.setColor(QPalette::Background, QColor(255, 0, 0));
+                            mode_label_ -> setPalette(palette);
+                            palette.setColor(QPalette::WindowText, QColor(0, 255, 255));
+                            mode_label_ -> setPalette(palette);
+                        break;
+                    }
+                break;
+                case(0x02):
+                    mode_label_ -> setText("定点模式");
+                    palette.setColor(QPalette::Background, QColor(0, 255, 0));
+                    mode_label_ -> setPalette(palette);
+                    palette.setColor(QPalette::WindowText, QColor(200, 0, 0));
+                    mode_label_ -> setPalette(palette);
+                break;
+            }
+                
+
         }
         else{
             mode_label_ -> setText("Vicon测试中");

@@ -104,8 +104,8 @@ void send_PID_debug(vector<uint8_t> &data){
         break;
 
         case(0x03):
-            pid_debug_msg.x = *((float*)&(data[3])) * 100.0;
-            pid_debug_msg.y = *((float*)&(data[7]));
+            pid_debug_msg.x = *((float*)&(data[3]));
+            pid_debug_msg.y = *((float*)&(data[7])) / 655.4;
             pid_debug_msg.z = *((float*)&(data[11]));
             pos_pid_pub.publish(pid_debug_msg);
             pid_debug_msg.z = *((float*)&(data[15]));
@@ -133,9 +133,9 @@ void send_and_save_pose_debug(vector<uint8_t> &data){
 void send_pos_debug(vector<uint8_t> &data){
 
     geometry_msgs::Vector3 msg_pos;
-    msg_pos.x = (int16_t)(data[14] << 8 | data[15]) / 100.0;
-    msg_pos.y = (int16_t)(data[16] << 8 | data[17]) / 100.0;
-    msg_pos.z = (int16_t)(data[18] << 8 | data[19]) / 100.0;
+    msg_pos.x = (int16_t)(data[14] << 8 | data[15]);
+    msg_pos.y = (int16_t)(data[16] << 8 | data[17]);
+    msg_pos.z = (int16_t)(data[18] << 8 | data[19]);
     pos_pub.publish(msg_pos);
 }
 
