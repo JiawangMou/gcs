@@ -89,7 +89,8 @@ protected Q_SLOTS:
     void enableThrottleDebug();
     void uploadJoystick();
     void refreshViconTopicList();
-    void viconStartEnd();
+    void viconControlStartEnd();
+    void viconViewStartEnd();
     void joystickMove(float x, float y);
     void endMessage();
     void calibrateMag();
@@ -349,7 +350,8 @@ protected:
     QVBoxLayout* vicon_test_layout_;
     QPushButton* vicon_topic_refresh_btn_;
     QComboBox* vicon_topic_combo_;
-    QPushButton* vicon_start_btn_;
+    QPushButton* vicon_control_btn_;
+    QPushButton* vicon_view_btn_;
 
     //Debug模式控件
     QVBoxLayout* debug_layout_;
@@ -401,7 +403,8 @@ protected:
     // FILE* joystick_;
 
     bool is_connected;
-    bool is_vicon_started;
+    bool is_vicon_control_started;
+    bool is_vicon_view_started;
 
     bool is_displaying_msg;
     std::queue<message_t> display_message_queue_;

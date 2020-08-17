@@ -68,7 +68,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
 #ifdef FOUR_WING
     is_throttle_2_enabled_ = 0;
 #endif
-    is_vicon_started = false;
+    is_vicon_control_started = false;
+    is_vicon_view_started = false;
     is_displaying_msg = false;
     is_calibrating_mag = false;
     mag_calib_data_[0].resize(MAG_CALIB_REQUIRE_CNT);
@@ -600,8 +601,10 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     vicon_test_layout_ -> addWidget(vicon_topic_refresh_btn_);
     vicon_topic_combo_ = new QComboBox();
     vicon_test_layout_ -> addWidget(vicon_topic_combo_);
-    vicon_start_btn_ = new QPushButton("开始Vicon转发");
-    vicon_test_layout_ -> addWidget(vicon_start_btn_);
+    vicon_control_btn_ = new QPushButton("开始Vicon控制");
+    vicon_test_layout_ -> addWidget(vicon_control_btn_);
+    vicon_view_btn_ = new QPushButton("开始Vicon转发");
+    vicon_test_layout_ -> addWidget(vicon_view_btn_);
 
     //Debug Layout
     debug_layout_ = new QVBoxLayout();
@@ -697,7 +700,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect( throttle_debug_enable_, SIGNAL(clicked()), this, SLOT(enableThrottleDebug()));
 
     connect( vicon_topic_refresh_btn_,  SIGNAL( clicked() ), this, SLOT( refreshViconTopicList() ));
-    connect( vicon_start_btn_,  SIGNAL( clicked() ), this, SLOT( viconStartEnd() ));
+    connect( vicon_control_btn_,  SIGNAL( clicked() ), this, SLOT( viconControlStartEnd() ));
+    connect( vicon_view_btn_,  SIGNAL( clicked() ), this, SLOT( viconViewStartEnd() ));
     connect( flight_control_joysitck_, SIGNAL(JoystickValueChanged(float,float)), this, SLOT(joystickMove(float, float)) );
     connect( mag_calib_start_btn_,  SIGNAL( clicked() ), this, SLOT( calibrateMag() ));
     connect( mag_calib_clear_btn_,  SIGNAL( clicked() ), this, SLOT( clearCalibrateVisualization() ));
@@ -767,7 +771,7 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             cur_height_ = (int32_t)(msg -> data[8] << 24 | msg -> data[9] << 16 | msg -> data[10] << 8 | msg -> data[11]) / 100.0;
 
             // update display values
-            if(!is_vicon_started){
+            if(!is_vicon_control_started){
                 sprintf(numstr, "%.2f", cur_roll_);
                 roll_label_ -> setText(numstr);
                 sprintf(numstr, "%.2f", cur_pitch_);
@@ -777,15 +781,18 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                 sprintf(numstr, "%.2f", cur_height_);
                 height_label_ -> setText(numstr);
 
-                //send tf transform
-                tf::Transform transform;
-                tf::Quaternion q;
-                q.setRPY(cur_roll_ * DEG2RAD, cur_pitch_ * DEG2RAD, cur_yaw_ * DEG2RAD);
-                transform.setRotation(q);
-                transform.setOrigin(tf::Vector3(0,
-                                                0,
-                                                0));
-                tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
+                if(!is_vicon_view_started){
+                    //send tf transform
+                    tf::Transform transform;
+                    tf::Quaternion q;
+                    q.setRPY(cur_roll_ * DEG2RAD, cur_pitch_ * DEG2RAD, cur_yaw_ * DEG2RAD);
+                    transform.setRotation(q);
+                    transform.setOrigin(tf::Vector3(0,
+                                                    0,
+                                                    0));
+                    tf_pub_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "base_link"));
+                }
+
             }
         break;
 
@@ -2139,8 +2146,14 @@ std::string FMAVStatusPanel::getCommandOutput(const char* cmd){
     return res;
 }
 
-void FMAVStatusPanel::viconStartEnd(){
-    if(!is_vicon_started){
+void FMAVStatusPanel::viconControlStartEnd(){
+    if(!is_vicon_control_started){
+
+        if(is_vicon_view_started){
+            QMessageBox::critical(this, "错误", "已经开始另一个Vicon进程");
+            return;
+        }
+
         std::string topic = vicon_topic_combo_ -> currentText().toStdString();
         if(!topic.empty()){
             vicon_sub_ = nh_.subscribe(topic, 1000, &FMAVStatusPanel::viconReceive, this);
@@ -2148,8 +2161,8 @@ void FMAVStatusPanel::viconStartEnd(){
             topic = "rosrun rviz_teleop_commander vicon_transfer " + topic + "&";
             system(topic.c_str());
 
-            vicon_start_btn_ -> setText("结束Vicon转发");
-            is_vicon_started = true;
+            vicon_control_btn_ -> setText("结束Vicon控制");
+            is_vicon_control_started = true;
         }
         else QMessageBox::critical(this, "错误", "无效话题名");
     }
@@ -2157,8 +2170,37 @@ void FMAVStatusPanel::viconStartEnd(){
         vicon_sub_.shutdown();
 
         system("rosnode kill /vicon_transfer");
-        vicon_start_btn_ -> setText("开始Vicon转发");
-        is_vicon_started = false;
+        vicon_control_btn_ -> setText("开始Vicon控制");
+        is_vicon_control_started = false;
+    }
+}
+
+void FMAVStatusPanel::viconViewStartEnd(){
+    if(!is_vicon_view_started){
+        
+        if(is_vicon_control_started){
+            QMessageBox::critical(this, "错误", "已经开始另一个Vicon进程");
+            return;
+        }
+
+        std::string topic = vicon_topic_combo_ -> currentText().toStdString();
+        if(!topic.empty()){
+            vicon_sub_ = nh_.subscribe(topic, 1000, &FMAVStatusPanel::viconReceive, this);
+
+            topic = "rosrun rviz_teleop_commander vicon_view " + topic + "&";
+            system(topic.c_str());
+
+            vicon_view_btn_ -> setText("结束Vicon查看");
+            is_vicon_view_started = true;
+        }
+        else QMessageBox::critical(this, "错误", "无效话题名");
+    }
+    else{
+        vicon_sub_.shutdown();
+
+        system("rosnode kill /vicon_transfer");
+        vicon_view_btn_ -> setText("开始Vicon查看");
+        is_vicon_view_started = false;
     }
 }
 
@@ -2276,7 +2318,7 @@ void FMAVStatusPanel::displayStatus(){
 
     QPalette palette;
     if(is_connected){
-        if(!is_vicon_started){
+        if(!is_vicon_control_started){
 
             switch(mode_id_){
                 case(0xff):

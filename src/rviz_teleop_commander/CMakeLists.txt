@@ -135,6 +135,20 @@ add_dependencies(
   ${catkin_EXPORTED_TARGETS}
 )
 
+add_executable(vicon_view
+  src/vicon_view.cpp
+)
+
+target_link_libraries(vicon_view
+  ${catkin_LIBRARIES}
+)
+add_dependencies(
+  vicon_view
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+
 
 ## Install rules
 
