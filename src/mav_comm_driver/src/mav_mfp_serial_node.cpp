@@ -27,6 +27,7 @@ std::ofstream fout;
 
 // Height Control Debug
 ros::Publisher pwm_pub;
+ros::Publisher laser_pub;
 
 using namespace std;
 
@@ -151,6 +152,17 @@ void send_pwm_debug(vector<uint8_t> &data){
 
 }
 
+void send_laser_debug(vector<uint8_t> &data){
+
+    geometry_msgs::Vector3 msg;
+    
+    // x : left throttle, y : right throttle
+    msg.x = (uint16_t)(data[12] << 8 | data[13]);
+    msg.y = (uint16_t)(data[14] << 8 | data[15]);
+    msg.z = (uint16_t)(data[16] << 8 | data[17]);
+    laser_pub.publish(msg);
+}
+
 
 int main(int argc, char** argv){
     ros::init(argc, argv, "mav_comm_driver");
@@ -181,6 +193,7 @@ int main(int argc, char** argv){
 
     // Height Control Debug
     pwm_pub = n.advertise<geometry_msgs::Vector3>("/height_control_debug", 500);
+    laser_pub = n.advertise<geometry_msgs::Vector3>("/laser_height", 500);
 
     string port = "";
     n.param<std::string>("/mav_driver/port", port, "/dev/ttyACM0");
@@ -247,6 +260,8 @@ int main(int argc, char** argv){
                     rec_msg.msg_id = serial_data[0];
                     rec_msg.length = serial_data[1];
                     rec_msg.data = serial_data;
+                    mav_data_pub.publish(rec_msg);
+
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_PID_DEBUG)
                         send_PID_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_STATUS)
@@ -255,7 +270,8 @@ int main(int argc, char** argv){
                         send_pos_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_MOTOR)
                         send_pwm_debug(serial_data);
-                    mav_data_pub.publish(rec_msg);
+                    if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_USER_DATA2)
+                        send_laser_debug(serial_data);
 
                 }
             }
