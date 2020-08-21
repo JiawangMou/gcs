@@ -23,11 +23,13 @@ ros::Publisher pos_pid_pub;
 ros::Publisher pose_pub;
 ros::Publisher pos_pub;
 ros::Publisher vel_pub;
-std::ofstream fout;
 
 // Height Control Debug
 ros::Publisher pwm_pub;
 ros::Publisher laser_pub;
+
+// Status Save Debug
+std::ofstream fout;
 
 using namespace std;
 
@@ -116,7 +118,7 @@ void send_PID_debug(vector<uint8_t> &data){
     }
 }
 
-void send_and_save_pose_debug(vector<uint8_t> &data){
+void send_pose_debug(vector<uint8_t> &data){
 
     geometry_msgs::Vector3 msg;
     
@@ -126,8 +128,6 @@ void send_and_save_pose_debug(vector<uint8_t> &data){
     msg.z = - ((int16_t)(data[6] << 8 | data[7])) / 100.0;
     uint32_t time = ((uint32_t)data[14] << 24 | (uint32_t)data[15] << 16 | (uint32_t)data[16] << 8 | (uint32_t)data[17]);
     pose_pub.publish(msg);
-
-    fout << msg.x << "," << msg.y << "," << msg.z << "," << time << std::endl;
 
 }
 
@@ -163,6 +163,34 @@ void send_laser_debug(vector<uint8_t> &data){
     laser_pub.publish(msg);
 }
 
+void data_save_debug(vector<uint8_t> &data){
+
+    float tmp_f;
+    tmp_f = ((int16_t)(data[2] << 8 | data[3])) / 100.0;        //roll
+    fout << tmp_f << ",";
+    tmp_f = - ((int16_t)(data[4] << 8 | data[5])) / 100.0;      //pitch
+    fout << tmp_f << ",";
+    tmp_f = - ((int16_t)(data[6] << 8 | data[7])) / 100.0;      //yaw
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[8] << 8 | data[9])) / 10.0;         //height
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[10] << 8 | data[11])) / 10.0;       //accx
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[12] << 8 | data[13])) / 10.0;       //accy
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[14] << 8 | data[15])) / 10.0;       //accz
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[16] << 8 | data[17])) / 1000.0;       //accxraw
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[18] << 8 | data[19])) / 1000.0;       //accyraw
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[20] << 8 | data[21])) / 1000.0;       //acczraw
+    fout << tmp_f << ",";
+    tmp_f = ((int16_t)(data[22] << 8 | data[23])) / 10.0;       //zpred
+    fout << tmp_f << ",";
+    tmp_f = ((uint32_t)((uint32_t)data[24] << 24 | data[25] << 16 | data[26] << 8 | data[27]));
+    fout << tmp_f << std::endl;
+}
 
 int main(int argc, char** argv){
     ros::init(argc, argv, "mav_comm_driver");
@@ -189,7 +217,7 @@ int main(int argc, char** argv){
     pose_pub = n.advertise<geometry_msgs::Vector3>("/pose_debug", 500);
     pos_pub = n.advertise<geometry_msgs::Vector3>("/position_debug", 500);
     vel_pub = n.advertise<geometry_msgs::Vector3>("/velocity_debug", 500);
-    fout.open("pose_save.txt");
+    fout.open("mav_data_save.txt");
 
     // Height Control Debug
     pwm_pub = n.advertise<geometry_msgs::Vector3>("/height_control_debug", 500);
@@ -265,13 +293,15 @@ int main(int argc, char** argv){
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_PID_DEBUG)
                         send_PID_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_STATUS)
-                        send_and_save_pose_debug(serial_data);
+                        send_pose_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_USER_DATA1)
                         send_pos_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_MOTOR)
                         send_pwm_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_USER_DATA2)
                         send_laser_debug(serial_data);
+                    if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_DATA_SAVE_DEBUG)
+                        data_save_debug(serial_data);
 
                 }
             }

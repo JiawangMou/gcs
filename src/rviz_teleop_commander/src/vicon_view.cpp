@@ -4,10 +4,14 @@
 #include "tf/transform_datatypes.h"
 #include "tf/LinearMath/Matrix3x3.h"
 #include <string>
+#include <fstream>
 
 ros::Publisher rpy_publisher;
 ros::Publisher xyz_publisher;
 ros::Subscriber vicon_subscriber;
+
+//file out debug
+std::ofstream fout;
 
 void viconCallback(const geometry_msgs::TransformStamped msg){
 
@@ -30,6 +34,8 @@ void viconCallback(const geometry_msgs::TransformStamped msg){
     xyz.y = msg.transform.translation.y;
     xyz.z = msg.transform.translation.z;
 
+    fout << rpy.x << "," << rpy.y << "," << rpy.z << "," << xyz.x << "," << xyz.y << "," << xyz.z << std::endl;
+
     rpy_publisher.publish(rpy);
     xyz_publisher.publish(xyz);
 }
@@ -44,6 +50,8 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    fout.open("vicon_data_save.txt");
+
     rpy_publisher = n.advertise<geometry_msgs::Vector3>("vicon_rpy_angles", 1000);
     xyz_publisher = n.advertise<geometry_msgs::Vector3>("vicon_position", 1000);
     vicon_subscriber = n.subscribe(argv[1], 1000, viconCallback);
@@ -51,6 +59,8 @@ int main(int argc, char **argv)
     // check for incoming quaternions untill ctrl+c is pressed
     ROS_INFO("Waiting for data...");
     ros::spin();
+
+    fout.close();
 
     return 0;
 }

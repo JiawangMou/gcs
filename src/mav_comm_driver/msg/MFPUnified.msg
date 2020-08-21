@@ -19,9 +19,11 @@ uint8 UP_PID5 = 20          # 0x14
 uint8 UP_PID6 = 21          # 0x15
 
 uint8 UP_PID_DEBUG = 8      # 0x08
+uint8 UP_DATA_SAVE_DEBUG = 136   # 0x88
 
 uint8 UP_USER_DATA1 = 241   # 0xF1
 uint8 UP_USER_DATA2 = 242   # 0xF2
+uint8 UP_USER_DATA3 = 243   # 0xF3
 
 uint8 DOWN_ACK = 2          # 0x02
 uint8 DOWN_MOTOR = 81       # 0x51
