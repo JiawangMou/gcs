@@ -30,11 +30,11 @@ void viconCallback(const geometry_msgs::TransformStamped msg){
     rpy.z = yaw * 180.0/M_PI;
 
     geometry_msgs::Vector3 xyz;
-    xyz.x = msg.transform.translation.x;
-    xyz.y = msg.transform.translation.y;
-    xyz.z = msg.transform.translation.z;
+    xyz.x = msg.transform.translation.x * 100.0;
+    xyz.y = msg.transform.translation.y * 100.0;
+    xyz.z = msg.transform.translation.z * 100.0;
 
-    fout << rpy.x << "," << rpy.y << "," << rpy.z << "," << xyz.x << "," << xyz.y << "," << xyz.z << std::endl;
+    fout << rpy.x << "," << rpy.y << "," << rpy.z << "," << xyz.x << "," << xyz.y << "," << xyz.z << "," << msg.header.stamp.toNSec() << std::endl;
 
     rpy_publisher.publish(rpy);
     xyz_publisher.publish(xyz);

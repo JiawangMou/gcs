@@ -75,6 +75,9 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mag_calib_data_[0].resize(MAG_CALIB_REQUIRE_CNT);
     mag_calib_data_[1].resize(MAG_CALIB_REQUIRE_CNT);
     mag_calib_data_[2].resize(MAG_CALIB_REQUIRE_CNT);
+    is_calibrating_acc = false;
+    is_calibrating_acc_holding = false;
+    acc_calib_step = 0;
 
     // 标志logo & 电池
     logo_voltage_layout_ = new QHBoxLayout();
@@ -464,6 +467,15 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     mag_gain_layout_ -> addWidget(mag_gain_z_edit_);
     sensor_calib_layout_ -> addLayout(mag_gain_layout_);
 
+    acc_calib_layout_ = new QHBoxLayout();
+    acc_calib_front_label_ = new QLabel("加速度计六面校准: ");
+    acc_calib_layout_ -> addWidget(acc_calib_front_label_);
+    acc_calib_start_btn_ = new QPushButton("开始");
+    acc_calib_layout_ -> addWidget(acc_calib_start_btn_);
+    acc_calib_quit_btn_ = new QPushButton("中止");
+    acc_calib_layout_ -> addWidget(acc_calib_quit_btn_);
+    sensor_calib_layout_ -> addLayout(acc_calib_layout_);
+
 
     //PID Tuning Controls
     pid_tuning_layout_ = new QVBoxLayout();
@@ -610,6 +622,17 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     debug_layout_ = new QVBoxLayout();
     z_mode_label_ = new QLabel("Z Mode : - ");
     debug_layout_ -> addWidget(z_mode_label_);
+    debug_msg_send_layout_ = new QHBoxLayout();
+    debug_msg_id_front_label_ = new QLabel("调试消息发送框  |  消息ID:");
+    debug_msg_send_layout_ -> addWidget(debug_msg_id_front_label_);
+    debug_msg_id_edit_ = new QLineEdit();
+    debug_msg_send_layout_ -> addWidget(debug_msg_id_edit_);
+    debug_msg_send_btn_ = new QPushButton("发送");
+    debug_msg_send_layout_ -> addWidget(debug_msg_send_btn_);
+    debug_msg_content_edit_ = new QLineEdit();
+    debug_layout_ -> addLayout(debug_msg_send_layout_);
+    debug_layout_ -> addWidget(debug_msg_content_edit_);
+
     
     //飞行模式摇杆
     flight_control_joysitck_ = new JoystickWidget();
@@ -705,6 +728,9 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect( flight_control_joysitck_, SIGNAL(JoystickValueChanged(float,float)), this, SLOT(joystickMove(float, float)) );
     connect( mag_calib_start_btn_,  SIGNAL( clicked() ), this, SLOT( calibrateMag() ));
     connect( mag_calib_clear_btn_,  SIGNAL( clicked() ), this, SLOT( clearCalibrateVisualization() ));
+    connect( debug_msg_send_btn_, SIGNAL(clicked()), this, SLOT(uploadDebugMessage()));
+    connect( acc_calib_start_btn_,  SIGNAL( clicked() ), this, SLOT( calibrateAcc() ));
+    connect( acc_calib_quit_btn_,  SIGNAL( clicked() ), this, SLOT( quitCalibrateAcc() ));
 
     //T=500ms
     connection_check_timer -> start( 500 );
@@ -1158,7 +1184,36 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
                         false
                     );
                 break;
+                case(mav_comm_driver::MFPUnified::DOWN_COMMAND):
+                    if(is_calibrating_acc){
+                        is_calibrating_acc_holding = true;
+                        displayStatus();
+                    }
+                break;
             }
+        break;
+
+        case(mav_comm_driver::MFPUnified::UP_ACC_CALIB_CHECK):
+
+            if(acc_calib_step != msg -> data[2]){
+                displayMessage(
+                        message_t{
+                            .text="异常错误,标定中止",
+                            .color=Qt::darkRed,
+                            .time=200
+                        },
+                        false
+                );
+            }
+            else{
+                is_calibrating_acc_holding = false;
+                ROS_INFO_STREAM("ACC STEP " << (uint)(msg -> data[2] + 1)
+                                << ": Arg 1: " << *((float*)&(msg -> data[3]))
+                                << ": Arg 2: " << *((float*)&(msg -> data[7]))
+                                << ": Arg 3: " << *((float*)&(msg -> data[11])));
+                accMoveToNextAxis();
+            }
+            
         break;
 
         case(mav_comm_driver::MFPUnified::UP_PID_DEBUG):
@@ -1758,34 +1813,10 @@ void FMAVStatusPanel::setParamMode(int index){
     joystick_sub_.shutdown();
     if(joystick_send_timer_ -> isActive())
         joystick_send_timer_ -> stop();
-    
-    // if(is_throttle_enabled_){
-    //     if(is_connected)
-    //         enableThrottle();
-    //     else{
-    //         throttle_pwm_set_ = 0;
-    //         throttle_set_spin_ -> setValue(throttle_pwm_set_);
-    //         is_throttle_enabled_ = false;
-    //         throttle_enable_ -> setText("启动");
-    //     }
-    // }
 
 #ifdef FOUR_WING
     throttle_set_slider_ -> setRange(0, THROTTLE_MAX);
     throttle_2_set_slider_ -> setRange(0, THROTTLE_MAX);
-#endif
-
-#ifdef FOUR_WING
-    // if(is_throttle_2_enabled_){
-    //     if(is_connected)
-    //         enableThrottle2();
-    //     else{
-    //         throttle_2_pwm_set_ = 0;
-    //         throttle_2_set_spin_ -> setValue(throttle_2_pwm_set_);
-    //         is_throttle_2_enabled_ = false;
-    //         throttle_2_enable_ -> setText("启动");
-    //     }
-    // }
 #endif
 
     flight_control_joysitck_ -> setVisible(false);
@@ -2198,7 +2229,7 @@ void FMAVStatusPanel::viconViewStartEnd(){
     else{
         vicon_sub_.shutdown();
 
-        system("rosnode kill /vicon_transfer");
+        system("rosnode kill /vicon_view");
         vicon_view_btn_ -> setText("开始Vicon查看");
         is_vicon_view_started = false;
     }
@@ -2317,8 +2348,29 @@ void FMAVStatusPanel::endMessage(){
 void FMAVStatusPanel::displayStatus(){
 
     QPalette palette;
+
+    // shouldn't eliminate the message
+    if(is_displaying_msg) return;
+
     if(is_connected){
-        if(!is_vicon_control_started){
+        if(is_calibrating_acc){
+            if(is_calibrating_acc_holding){
+                mode_label_ -> setText("不要移动飞控!");
+                palette.setColor(QPalette::Background, Qt::red);
+                mode_label_ -> setPalette(palette);
+                palette.setColor(QPalette::WindowText, Qt::yellow);
+                mode_label_ -> setPalette(palette);
+            }
+            else{
+
+                mode_label_ -> setText("六面校准模式");
+                palette.setColor(QPalette::Background, Qt::yellow);
+                mode_label_ -> setPalette(palette);
+                palette.setColor(QPalette::WindowText, Qt::blue);
+                mode_label_ -> setPalette(palette);
+            }
+        }
+        else if(!is_vicon_control_started){
 
             switch(mode_id_){
                 case(0xff):
@@ -2397,6 +2449,39 @@ void FMAVStatusPanel::displayStatus(){
     return;
 }
 
+void FMAVStatusPanel::uploadDebugMessage(){
+
+    const char* str_id = debug_msg_id_edit_ -> text().toStdString().c_str();
+    uint tmp;
+    uint count = 0;
+    mav_comm_driver::MFPUnified msg;
+    
+    sscanf(str_id, "%x", &tmp);
+    if(tmp >= 256){
+        ROS_WARN("wrong Msg ID. Won't be sent");
+        return;
+    }
+    msg.msg_id = tmp;
+
+    msg.data.push_back(tmp);
+    msg.data.push_back(0);  //length: temporarily set to 0
+    std::stringstream std_content(debug_msg_content_edit_ -> text().toStdString());
+    while(std_content >> std::hex >> tmp){
+        if(tmp >= 256){
+            ROS_WARN("wrong Msg Content. Won't be sent");
+            return;
+        }
+        msg.data.push_back(tmp);
+        count ++;
+    }
+    msg.data[1] = count;
+    
+    msg.length = count;
+    msg.header.stamp = ros::Time::now();
+    mav_config_pub_.publish(msg);
+    ROS_INFO_STREAM("Msg Sent, ID: " << (uint)msg.msg_id << ", Length: " << (uint)msg.length);
+}
+
 // 磁力计校准
 void FMAVStatusPanel::calibrateMag(){
 
@@ -2454,6 +2539,113 @@ void FMAVStatusPanel::clearCalibrateVisualization(){
         mag_calib_vis_pub_.publish(mag_calib_vis_msg_);
     }
 
+}
+
+void FMAVStatusPanel::calibrateAcc(){
+    if(!is_calibrating_acc){
+        is_calibrating_acc = true;
+        acc_calib_start_btn_ -> setText("第一步");
+    }
+    else{
+        mav_comm_driver::MFPUnified msg;
+        msg.msg_id = mav_comm_driver::MFPUnified::DOWN_COMMAND;
+        msg.length = 1;
+        msg.data.push_back(mav_comm_driver::MFPUnified::DOWN_COMMAND);
+        msg.data.push_back(1);
+        msg.data.push_back(0x21 + acc_calib_step);
+        mav_config_pub_.publish(msg);
+    }
+}
+
+void FMAVStatusPanel::quitCalibrateAcc(){
+    if(is_calibrating_acc){
+        is_calibrating_acc = false;
+        acc_calib_step = 0;
+        is_calibrating_acc_holding = false;
+        acc_calib_start_btn_ -> setText("开始");
+        displayMessage(
+                message_t{
+                    .text="加速度计标定中止",
+                    .color=Qt::yellow,
+                    .time=200
+                },
+                false
+        );
+    }
+}
+
+void FMAVStatusPanel::accMoveToNextAxis(){
+    
+    acc_calib_step ++;
+    switch(acc_calib_step){
+        case(1):
+            acc_calib_start_btn_ -> setText("第二步");
+            displayMessage(
+                    message_t{
+                        .text="第一步成功",
+                        .color=Qt::green,
+                        .time=200
+                    },
+                    false
+            );
+        break;
+        case(2):
+            acc_calib_start_btn_ -> setText("第三步");
+            displayMessage(
+                    message_t{
+                        .text="第二步成功",
+                        .color=Qt::green,
+                        .time=200
+                    },
+                    false
+            );
+        break;
+        case(3):
+            acc_calib_start_btn_ -> setText("第四步");
+            displayMessage(
+                    message_t{
+                        .text="第三步成功",
+                        .color=Qt::green,
+                        .time=200
+                    },
+                    false
+            );
+        break;
+        case(4):
+            acc_calib_start_btn_ -> setText("第五步");
+            displayMessage(
+                    message_t{
+                        .text="第四步成功",
+                        .color=Qt::green,
+                        .time=200
+                    },
+                    false
+            );
+        break;
+        case(5):
+            acc_calib_start_btn_ -> setText("第六步");
+            displayMessage(
+                    message_t{
+                        .text="第五步成功",
+                        .color=Qt::green,
+                        .time=200
+                    },
+                    false
+            );
+        break;
+        case(7):
+            displayMessage(
+                    message_t{
+                        .text="六面校准成功",
+                        .color=Qt::green,
+                        .time=200
+                    },
+                    false
+            );
+            acc_calib_start_btn_ -> setText("开始");
+            is_calibrating_acc = false;
+        break;
+    }
 }
 
 // 重载父类的功能

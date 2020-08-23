@@ -94,7 +94,10 @@ protected Q_SLOTS:
     void joystickMove(float x, float y);
     void endMessage();
     void calibrateMag();
+    void calibrateAcc();
+    void quitCalibrateAcc();
     void clearCalibrateVisualization();
+    void uploadDebugMessage();
 
 protected:
     void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
@@ -113,6 +116,7 @@ protected:
     void displayMessage(const message_t &, const bool);
     void displayStatus();
     void initPosePublish();
+    void accMoveToNextAxis();
 
 // 内部变量.
 protected:
@@ -290,6 +294,11 @@ protected:
     QLabel* mag_gain_z_front_label_;
     QLineEdit* mag_gain_z_edit_;
 
+    QHBoxLayout* acc_calib_layout_;
+    QLabel* acc_calib_front_label_;
+    QPushButton* acc_calib_start_btn_;
+    QPushButton* acc_calib_quit_btn_;
+
     //校准变量
     double mag_offset_set_[3];  //0:x   1:y   2:z
     double mag_gain_set_[3];
@@ -356,6 +365,12 @@ protected:
     //Debug模式控件
     QVBoxLayout* debug_layout_;
     QLabel* z_mode_label_;
+    QHBoxLayout* debug_msg_send_layout_;
+    QLabel* debug_msg_id_front_label_;
+    QLineEdit* debug_msg_id_edit_;
+    QPushButton* debug_msg_send_btn_;
+    QLineEdit* debug_msg_content_edit_;
+
     
     //飞行模式摇杆
     JoystickWidget* flight_control_joysitck_;
@@ -421,6 +436,9 @@ protected:
     visualization_msgs::Marker mag_calib_vis_ellipsoid_;
     static const uint MAG_CALIB_REQUIRE_CNT = 600;
     static const uint MAG_CALIB_POINT_SCALE = 200;
+    bool is_calibrating_acc;
+    bool is_calibrating_acc_holding;    // 'Do not move' sign
+    uint acc_calib_step;
 
 };
 
