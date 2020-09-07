@@ -28,6 +28,9 @@ ros::Publisher vel_pub;
 ros::Publisher pwm_pub;
 ros::Publisher laser_pub;
 
+// Acc Debug
+ros::Publisher acc_pub;
+
 // Status Save Debug
 std::ofstream fout;
 
@@ -163,6 +166,16 @@ void send_laser_debug(vector<uint8_t> &data){
     laser_pub.publish(msg);
 }
 
+void acc_debug(vector<uint8_t> &data){
+
+    geometry_msgs::Vector3 msg;
+    
+    msg.x = (int16_t)(data[2] << 8 | data[3]);
+    msg.y = (int16_t)(data[4] << 8 | data[5]);
+    msg.z = (int16_t)(data[6] << 8 | data[7]);
+    acc_pub.publish(msg);
+}
+
 void data_save_debug(vector<uint8_t> &data){
 
     float tmp_f;
@@ -222,6 +235,9 @@ int main(int argc, char** argv){
     // Height Control Debug
     pwm_pub = n.advertise<geometry_msgs::Vector3>("/height_control_debug", 500);
     laser_pub = n.advertise<geometry_msgs::Vector3>("/laser_height", 500);
+
+    // Acc Debug
+    acc_pub = n.advertise<geometry_msgs::Vector3>("/acc_debug", 500);
 
     string port = "";
     n.param<std::string>("/mav_driver/port", port, "/dev/ttyACM0");
@@ -302,7 +318,8 @@ int main(int argc, char** argv){
                         send_laser_debug(serial_data);
                     if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_DATA_SAVE_DEBUG)
                         data_save_debug(serial_data);
-
+                    if(rec_msg.msg_id == mav_comm_driver::MFPUnified::UP_SENSER)
+                        acc_debug(serial_data);
                 }
             }
         }

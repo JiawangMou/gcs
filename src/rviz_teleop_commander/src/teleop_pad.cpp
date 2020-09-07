@@ -948,13 +948,13 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             //0: yaw, 1: pitch, 2:roll
             pid_int_set_[2][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
             pid_int_set_[2][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
-            pid_int_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_int_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
             pid_int_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
             pid_int_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
-            pid_int_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_int_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 100.0;
             pid_int_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
             pid_int_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
-            pid_int_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+            pid_int_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 100.0;
             // uplimit
             pid_int_uplimit_[2] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
             pid_int_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
@@ -979,13 +979,13 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             //0: yaw, 1: pitch, 2:roll
             pid_ext_set_[2][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
             pid_ext_set_[2][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
-            pid_ext_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_ext_set_[2][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
             pid_ext_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
             pid_ext_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
-            pid_ext_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_ext_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 100.0;
             pid_ext_set_[0][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
             pid_ext_set_[0][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
-            pid_ext_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+            pid_ext_set_[0][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 100.0;
 
             pid_ext_uplimit_[2] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
             pid_ext_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
@@ -1010,13 +1010,13 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             //0: x, 1: y, 2:z
             pid_vel_set_[0][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
             pid_vel_set_[0][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
-            pid_vel_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_vel_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
             pid_vel_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
             pid_vel_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
-            pid_vel_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_vel_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 100.0;
             pid_vel_set_[2][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
             pid_vel_set_[2][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
-            pid_vel_set_[2][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+            pid_vel_set_[2][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 100.0;
 
             pid_vel_uplimit_[0] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
             pid_vel_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
@@ -1041,13 +1041,13 @@ void FMAVStatusPanel::updateMAVStatus(const mav_comm_driver::MFPUnified::ConstPt
             //0: x, 1: y, 2:z
             pid_pos_set_[0][0] = (int16_t)(msg -> data[2] << 8 | msg -> data[3]) / 10.0;
             pid_pos_set_[0][1] = (int16_t)(msg -> data[4] << 8 | msg -> data[5]) / 10.0;
-            pid_pos_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 10.0;
+            pid_pos_set_[0][2] = (int16_t)(msg -> data[6] << 8 | msg -> data[7]) / 100.0;
             pid_pos_set_[1][0] = (int16_t)(msg -> data[8] << 8 | msg -> data[9]) / 10.0;
             pid_pos_set_[1][1] = (int16_t)(msg -> data[10] << 8 | msg -> data[11]) / 10.0;
-            pid_pos_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 10.0;
+            pid_pos_set_[1][2] = (int16_t)(msg -> data[12] << 8 | msg -> data[13]) / 100.0;
             pid_pos_set_[2][0] = (int16_t)(msg -> data[14] << 8 | msg -> data[15]) / 10.0;
             pid_pos_set_[2][1] = (int16_t)(msg -> data[16] << 8 | msg -> data[17]) / 10.0;
-            pid_pos_set_[2][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 10.0;
+            pid_pos_set_[2][2] = (int16_t)(msg -> data[18] << 8 | msg -> data[19]) / 100.0;
 
             pid_pos_uplimit_[0] = (uint16_t)(msg -> data[20] << 8 | msg -> data[21]);
             pid_pos_uplimit_[1] = (uint16_t)(msg -> data[22] << 8 | msg -> data[23]);
@@ -1350,7 +1350,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_int_set_[2][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_int_set_[2][2] * 10);
+            tmp_16 = (int16_t)(pid_int_set_[2][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_int_set_[1][0] * 10);
@@ -1359,7 +1359,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_int_set_[1][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_int_set_[1][2] * 10);
+            tmp_16 = (int16_t)(pid_int_set_[1][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_int_set_[0][0] * 10);
@@ -1368,7 +1368,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_int_set_[0][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_int_set_[0][2] * 10);
+            tmp_16 = (int16_t)(pid_int_set_[0][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
 
@@ -1399,7 +1399,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_ext_set_[2][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_ext_set_[2][2] * 10);
+            tmp_16 = (int16_t)(pid_ext_set_[2][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_ext_set_[1][0] * 10);
@@ -1408,7 +1408,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_ext_set_[1][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_ext_set_[1][2] * 10);
+            tmp_16 = (int16_t)(pid_ext_set_[1][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_ext_set_[0][0] * 10);
@@ -1417,7 +1417,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_ext_set_[0][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_ext_set_[0][2] * 10);
+            tmp_16 = (int16_t)(pid_ext_set_[0][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
 
@@ -1450,7 +1450,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_vel_set_[0][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_vel_set_[0][2] * 10);
+            tmp_16 = (int16_t)(pid_vel_set_[0][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_vel_set_[1][0] * 10);
@@ -1459,7 +1459,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_vel_set_[1][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_vel_set_[1][2] * 10);
+            tmp_16 = (int16_t)(pid_vel_set_[1][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_vel_set_[2][0] * 10);
@@ -1468,7 +1468,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_vel_set_[2][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_vel_set_[2][2] * 10);
+            tmp_16 = (int16_t)(pid_vel_set_[2][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
 
@@ -1498,7 +1498,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_pos_set_[0][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_pos_set_[0][2] * 10);
+            tmp_16 = (int16_t)(pid_pos_set_[0][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_pos_set_[1][0] * 10);
@@ -1507,7 +1507,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_pos_set_[1][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_pos_set_[1][2] * 10);
+            tmp_16 = (int16_t)(pid_pos_set_[1][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
             tmp_16 = (int16_t)(pid_pos_set_[2][0] * 10);
@@ -1516,7 +1516,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
             tmp_16 = (int16_t)(pid_pos_set_[2][1] * 10);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
-            tmp_16 = (int16_t)(pid_pos_set_[2][2] * 10);
+            tmp_16 = (int16_t)(pid_pos_set_[2][2] * 100);
             msg.data.push_back(tmp_16 >> 8);
             msg.data.push_back(tmp_16);
 
@@ -1535,200 +1535,7 @@ void FMAVStatusPanel::uploadConfig(){  //button slot: transfer config to fmav
         break;
 
     }
-//     mav_comm_driver::ModeConfig msg;
-//     uint i;
 
-//     if(!is_connected) return;
-
-//     switch(param_mode_){
-//         case(fault_mode):
-//             msg.mode_id = fault_mode;
-//             msg.data.reserve(3);
-//             msg.data.push_back(fault_mode);
-//             msg.data.push_back(0x0d);
-//             msg.data.push_back(0x0a);
-//         break;
-
-//         case(start_mode):
-//             msg.mode_id = start_mode;
-// #ifdef TWO_WING
-//             msg.data.reserve(7);
-// #else
-//             msg.data.reserve(9);
-// #endif
-//             msg.data.push_back(start_mode);
-//             msg.data.push_back(right_servo_pwm_set_);
-//             msg.data.push_back(left_servo_pwm_set_);
-// #ifdef TWO_WING
-//             msg.data.push_back(mid_servo_pwm_set_);
-//             if(is_throttle_enabled_)
-//                 msg.data.push_back(throttle_pwm_set_);
-//             else
-//                 msg.data.push_back(0);
-// #else
-//             if(is_throttle_enabled_){
-//                 msg.data.push_back(throttle_pwm_set_);
-//                 msg.data.push_back(throttle_pwm_set_ >> 8);
-//             }
-//             else{
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//             }
-//             if(is_throttle_2_enabled_){
-//                 msg.data.push_back(throttle_2_pwm_set_);
-//                 msg.data.push_back(throttle_2_pwm_set_ >> 8);
-//             }
-//             else{
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//             }
-// #endif
-//             msg.data.push_back(0x0d);
-//             msg.data.push_back(0x0a);
-//         break;
-
-//         case(manual_mode):
-//             msg.mode_id = manual_mode;
-// #ifdef TWO_WING
-//             msg.data.reserve(8);
-// #else
-//             msg.data.reserve(9);
-// #endif
-//             msg.data.push_back(manual_mode);
-//             msg.data.push_back(right_servo_pwm_set_);
-//             msg.data.push_back(left_servo_pwm_set_);
-// #ifdef TWO_WING
-//             msg.data.push_back(mid_servo_pwm_set_);
-
-//             if(is_throttle_enabled_)
-//                 msg.data.push_back(throttle_pwm_set_);
-//             else
-//                 msg.data.push_back(0);
-            
-//             msg.data.push_back(climb_pwm_set_);
-// #else
-//             if(is_throttle_enabled_){
-//                 msg.data.push_back(throttle_pwm_set_);
-//                 msg.data.push_back(throttle_pwm_set_ >> 8);
-//             }
-//             else{
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//             }
-//             if(is_throttle_2_enabled_){
-//                 msg.data.push_back(throttle_2_pwm_set_);
-//                 msg.data.push_back(throttle_2_pwm_set_ >> 8);
-//             }
-//             else{
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//             }
-// #endif
-//             msg.data.push_back(0x0d);
-//             msg.data.push_back(0x0a);
-//         break;
-
-//         case(flight_mode):
-//             msg.mode_id = flight_mode;
-//             msg.data.reserve(9);
-//             msg.data.push_back(flight_mode);
-//             msg.data.push_back(0);
-//             msg.data.push_back(0);
-//             msg.data.push_back(0);
-//             msg.data.push_back(0);
-// #ifdef TWO_WING
-//             if(is_throttle_enabled_)
-//                 msg.data.push_back(throttle_pwm_set_);
-//             else
-//                 msg.data.push_back(0);
-// #endif
-// #ifdef FOUR_WING
-//             if(is_throttle_enabled_){
-//                 msg.data.push_back(throttle_pwm_set_);
-//                 msg.data.push_back(throttle_pwm_set_ >> 8);
-//             }
-//             else{
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//             }
-// #endif
-            
-//             msg.data.push_back(0x0d);
-//             msg.data.push_back(0x0a);
-//         break;
-
-//         case(tuning_mode):
-//             msg.mode_id = tuning_mode;
-// #ifdef TWO_WING
-//             msg.data.reserve(26);
-// #else
-//             msg.data.reserve(29);
-// #endif
-//             msg.data.push_back(tuning_mode);
-
-//             int16_t tmp_16;
-//             tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][0] * 100);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-//             tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][1] * 100);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-//             tmp_16 = (int16_t)(pid_int_set_[pid_id_set_][2] * 100);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-
-//             tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][0] * 100);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-//             tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][1] * 100);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-//             tmp_16 = (int16_t)(pid_ext_set_[pid_id_set_][2] * 100);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-
-//             msg.data.push_back(pid_freq_);
-
-//             msg.data.push_back((uint8_t)pid_id_set_);
-
-//             tmp_16 = (int16_t)(pid_ext_lowlimit_[pid_id_set_] * 10);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-//             tmp_16 = (int16_t)(pid_ext_uplimit_[pid_id_set_] * 10);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-//             msg.data.push_back(pid_int_lowlimit_[pid_id_set_]);
-//             msg.data.push_back(pid_int_uplimit_[pid_id_set_]);
-
-//             tmp_16 = (int16_t)(pid_setvalue_[pid_id_set_] * 100);
-//             msg.data.push_back(tmp_16);
-//             msg.data.push_back(tmp_16 >> 8);
-
-// #ifdef TWO_WING
-//             if(is_throttle_enabled_)
-//                 msg.data.push_back(throttle_pwm_set_);
-//             else
-//                 msg.data.push_back(0);
-// #else
-//             if(is_throttle_enabled_){
-//                 msg.data.push_back(throttle_pwm_set_);
-//                 msg.data.push_back(throttle_pwm_set_ >> 8);
-//                 msg.data.push_back(throttle_pwm_set_);
-//                 msg.data.push_back(throttle_pwm_set_ >> 8);
-//             }
-//             else{
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//                 msg.data.push_back(0);
-//             }
-// #endif
-
-//             msg.data.push_back(0x0d);
-//             msg.data.push_back(0x0a);
-
-//         break;
-//     }
 //     if(write_flash_checkbox_ -> isChecked()){
 //         msg.mode_id = msg.mode_id | 0x01;
 //         msg.data[0] = msg.data[0] | 0x01;
