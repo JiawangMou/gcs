@@ -50,7 +50,7 @@ Panels:
     PIDExtYawSet1: 0
     PIDExtYawSet2: 0
     PIDFrequency: 200
-    PIDID: 1
+    PIDID: 0
     PIDIntLowlimitPitch: 0
     PIDIntLowlimitRoll: 0
     PIDIntLowlimitYaw: 0
@@ -63,8 +63,8 @@ Panels:
     PIDIntUplimitPitch: 0
     PIDIntUplimitRoll: 0
     PIDIntUplimitYaw: 0
-    PIDIntYawSet0: 50
-    PIDIntYawSet1: 4
+    PIDIntYawSet0: 35
+    PIDIntYawSet1: 2
     PIDIntYawSet2: 0
     PIDPosLowlimitX: -1200
     PIDPosLowlimitY: -1200

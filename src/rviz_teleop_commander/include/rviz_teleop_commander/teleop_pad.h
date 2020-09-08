@@ -98,6 +98,7 @@ protected Q_SLOTS:
     void quitCalibrateAcc();
     void clearCalibrateVisualization();
     void uploadDebugMessage();
+    void openDebugRqt();
 
 protected:
     void joystickReceive(const sensor_msgs::Joy::ConstPtr&);
@@ -370,7 +371,7 @@ protected:
     QLineEdit* debug_msg_id_edit_;
     QPushButton* debug_msg_send_btn_;
     QLineEdit* debug_msg_content_edit_;
-
+    QPushButton* debug_plot_btn_;
     
     //飞行模式摇杆
     JoystickWidget* flight_control_joysitck_;

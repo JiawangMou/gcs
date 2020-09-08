@@ -632,6 +632,8 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     debug_msg_content_edit_ = new QLineEdit();
     debug_layout_ -> addLayout(debug_msg_send_layout_);
     debug_layout_ -> addWidget(debug_msg_content_edit_);
+    debug_plot_btn_ = new QPushButton("打开波形调试窗口");
+    debug_layout_ -> addWidget(debug_plot_btn_);
 
     
     //飞行模式摇杆
@@ -731,6 +733,7 @@ FMAVStatusPanel::FMAVStatusPanel( QWidget* parent )
     connect( debug_msg_send_btn_, SIGNAL(clicked()), this, SLOT(uploadDebugMessage()));
     connect( acc_calib_start_btn_,  SIGNAL( clicked() ), this, SLOT( calibrateAcc() ));
     connect( acc_calib_quit_btn_,  SIGNAL( clicked() ), this, SLOT( quitCalibrateAcc() ));
+    connect( debug_plot_btn_, SIGNAL(clicked()), this, SLOT(openDebugRqt()));
 
     //T=500ms
     connection_check_timer -> start( 500 );
@@ -2453,6 +2456,10 @@ void FMAVStatusPanel::accMoveToNextAxis(){
             is_calibrating_acc = false;
         break;
     }
+}
+
+void FMAVStatusPanel::openDebugRqt(){
+    system("rqt&");
 }
 
 // 重载父类的功能
